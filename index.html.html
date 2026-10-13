@@ -1,0 +1,1348 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản Lý Người Ở Khu Trọ Vườn Xuân</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SheetJS (xlsx) for Excel Export -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- html2pdf.js for PDF Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Supabase JS Client CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: #f1f5f9;
+            color: #1e293b;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        .pdf-export-container {
+            font-family: Arial, sans-serif;
+            color: #1e293b;
+            background: #ffffff;
+            padding: 15px;
+            width: 100%;
+        }
+        .pdf-export-container table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+        .pdf-export-container th, .pdf-export-container td {
+            border: 1px solid #cbd5e1;
+            padding: 6px 8px;
+            text-align: left;
+            word-break: break-word;
+        }
+        .pdf-export-container th {
+            background-color: #f1f5f9;
+            font-weight: bold;
+            color: #0f172a;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- MÀN HÌNH NHẬP MẬT KHẨU BẢO MẬT -->
+    <div id="auth-overlay" class="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl space-y-6 text-center border border-slate-100">
+            <div class="w-16 h-16 bg-gradient-to-br from-sky-400 to-indigo-500 text-white rounded-2xl flex items-center justify-center mx-auto text-2xl shadow-lg shadow-sky-500/30">
+                <i class="fa-solid fa-lock"></i>
+            </div>
+            <div>
+                <h3 class="text-xl font-bold text-slate-800">Xác Nhận Truy Cập</h3>
+                <p class="text-xs text-slate-500 mt-1">Vui lòng nhập mật khẩu để vào phần mềm Quản Lý Người Ở</p>
+            </div>
+            <div class="space-y-3">
+                <input type="password" id="app-password-input" placeholder="Nhập mật khẩu..." 
+                    onkeyup="if(event.key === 'Enter') checkAppPassword()"
+                    class="w-full px-4 py-3 rounded-xl border border-slate-300 text-center text-lg font-bold tracking-widest focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                <p id="auth-error-msg" class="text-xs text-rose-500 font-semibold hidden"><i class="fa-solid fa-circle-exclamation mr-1"></i> Mật khẩu không chính xác!</p>
+                <button onclick="checkAppPassword()" class="w-full bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 text-white font-bold py-3 rounded-xl text-sm transition shadow-lg shadow-sky-500/30">
+                    Đăng Nhập
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- HEADER -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row justify-between items-center gap-3">
+            <div class="flex items-center gap-3">
+                <!-- LOGO XANH DƯƠNG PASTEL LOANG ĐẸP MẮT -->
+                <div class="w-12 h-12 bg-gradient-to-br from-sky-300 via-sky-400 to-indigo-400 text-white rounded-2xl shadow-md shadow-sky-300/50 flex items-center justify-center text-xl">
+                    <i class="fa-solid fa-users"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-slate-800 tracking-tight">Quản Lý Người Ở - Khu Trọ Vườn Xuân</h1>
+                    <p class="text-xs text-slate-500">Hệ thống quản lý nhân khẩu, CCCD & lịch sử trả phòng</p>
+                </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+                <button onclick="lockApp()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 border border-slate-300 shadow-xs" title="Tạm khóa màn hình (Ctrl + L)">
+                    <i class="fa-solid fa-lock text-amber-600"></i> Khóa Trang
+                </button>
+                <button onclick="openChangePasswordModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 border border-slate-300 shadow-xs" title="Đổi mật khẩu truy cập">
+                    <i class="fa-solid fa-key text-sky-600"></i> Đổi Mật Khẩu
+                </button>
+            </div>
+        </div>
+
+        <!-- NAVIGATION TABS -->
+        <div class="bg-slate-200/80 border-t border-slate-300 px-4 py-2">
+            <div class="max-w-7xl mx-auto flex overflow-x-auto space-x-2 scrollbar-none" id="navTabs">
+                <button onclick="switchTab('tab-dang-o')" class="tab-btn px-5 py-2.5 text-sm font-bold rounded-xl transition whitespace-nowrap bg-gradient-to-r from-sky-300 via-sky-400 to-indigo-400 text-white shadow-md shadow-sky-300/30 border border-sky-300 flex items-center gap-2" data-target="tab-dang-o">
+                    <i class="fa-solid fa-user-check text-white"></i> Đang Ở
+                </button>
+                <button onclick="switchTab('tab-da-di')" class="tab-btn px-5 py-2.5 text-sm font-bold rounded-xl transition whitespace-nowrap bg-white text-black hover:bg-slate-100 border border-slate-300 flex items-center gap-2" data-target="tab-da-di">
+                    <i class="fa-solid fa-user-slash text-black"></i> Đã Đi
+                </button>
+                <button onclick="switchTab('tab-cccd')" class="tab-btn px-5 py-2.5 text-sm font-bold rounded-xl transition whitespace-nowrap bg-white text-black hover:bg-slate-100 border border-slate-300 flex items-center gap-2" data-target="tab-cccd">
+                    <i class="fa-solid fa-id-card text-black"></i> CCCD
+                </button>
+                <button onclick="switchTab('tab-tong-hop')" class="tab-btn px-5 py-2.5 text-sm font-bold rounded-xl transition whitespace-nowrap bg-white text-black hover:bg-slate-100 border border-slate-300 flex items-center gap-2" data-target="tab-tong-hop">
+                    <i class="fa-solid fa-chart-pie text-black"></i> Tổng Hợp
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-6">
+
+        <!-- ================= 1. TAG ĐANG Ở ================= -->
+        <div id="tab-dang-o" class="tab-content space-y-5">
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap items-center gap-3">
+                <button onclick="openAddPersonModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm flex items-center gap-2 transition">
+                    <i class="fa-solid fa-user-plus"></i> Thêm Người Ở
+                </button>
+                <button onclick="openQuickImportModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm flex items-center gap-2 transition">
+                    <i class="fa-solid fa-bolt"></i> Nhập Nhanh
+                </button>
+                <label class="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm flex items-center gap-2 transition cursor-pointer">
+                    <i class="fa-solid fa-file-excel"></i> Nhập Từ Excel
+                    <input type="file" id="excel-file-input" accept=".xlsx, .xls" class="hidden" onchange="importExcelDangO(event)">
+                </label>
+                <div class="ml-auto flex items-center gap-2">
+                    <button onclick="exportDangOExcel()" class="bg-emerald-700 hover:bg-emerald-800 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5">
+                        <i class="fa-solid fa-file-excel"></i> Xuất Excel
+                    </button>
+                    <button onclick="exportDangOPDF()" class="bg-rose-600 hover:bg-rose-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5">
+                        <i class="fa-solid fa-file-pdf"></i> Xuất PDF
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Tìm theo Số Phòng</label>
+                    <input type="text" id="search-phong-dang-o" oninput="renderDangO()" placeholder="Nhập số phòng cần tìm..." class="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Tìm theo Họ Tên</label>
+                    <input type="text" id="search-ten-dang-o" oninput="renderDangO()" placeholder="Nhập họ tên cần tìm..." class="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+            </div>
+
+            <!-- CHÚ GIẢI -->
+            <div class="bg-slate-100 p-3 rounded-xl border border-slate-300 flex flex-wrap items-center gap-4 text-xs text-slate-700 shadow-xs">
+                <span class="font-bold text-slate-800"><i class="fa-solid fa-circle-info text-sky-600 mr-1.5"></i> chú giải:</span>
+                <span class="flex items-center gap-1.5 font-medium"><button class="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-700 border border-indigo-300 flex items-center justify-center font-bold text-[10px]"><i class="fa-solid fa-pen"></i></button> Sửa</span>
+                <span class="flex items-center gap-1.5 font-medium"><button class="w-6 h-6 rounded-lg bg-sky-100 text-sky-700 border border-sky-300 flex items-center justify-center font-bold text-[10px]"><i class="fa-solid fa-eye"></i></button> Xem Ảnh CCCD</span>
+                <span class="flex items-center gap-1.5 font-medium"><button class="w-6 h-6 rounded-lg bg-amber-100 text-amber-700 border border-amber-300 flex items-center justify-center font-bold text-[10px]"><i class="fa-solid fa-right-from-bracket"></i></button> Trả Phòng</span>
+                <span class="flex items-center gap-1.5 font-medium"><button class="w-6 h-6 rounded-lg bg-rose-100 text-rose-700 border border-rose-300 flex items-center justify-center font-bold text-[10px]"><i class="fa-solid fa-trash"></i></button> Xóa</span>
+            </div>
+
+            <!-- Bảng Dữ Liệu Đang Ở -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="overflow-x-auto max-h-[500px]">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead class="sticky top-0 z-10 bg-slate-100 shadow-xs">
+                            <tr class="text-slate-700 font-bold border-b border-slate-200">
+                                <th class="p-3 w-12 text-center">STT</th>
+                                <th class="p-3 w-24">Số Phòng</th>
+                                <th class="p-3 w-40">Họ Tên</th>
+                                <th class="p-3 w-24">Ngày Sinh</th>
+                                <th class="p-3 w-20">Giới Tính</th>
+                                <th class="p-3 w-32">Số CCCD</th>
+                                <th class="p-3">Địa Chỉ Thường Trú</th>
+                                <th class="p-3 w-28 text-center">Ngày Đến</th>
+                                <th class="p-3 w-36 text-center">Thao Tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-dang-o-body" class="divide-y divide-slate-200">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= 2. TAG ĐÃ ĐI ================= -->
+        <div id="tab-da-di" class="tab-content hidden space-y-5">
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex justify-between items-center">
+                <h3 class="font-bold text-slate-800 text-sm"><i class="fa-solid fa-clock-rotate-left text-amber-600 mr-1.5"></i> Danh Sách Khách Đã Trả Phòng</h3>
+                <div class="flex items-center gap-2">
+                    <button onclick="exportDaDiExcel()" class="bg-emerald-700 hover:bg-emerald-800 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5">
+                        <i class="fa-solid fa-file-excel"></i> Xuất Excel
+                    </button>
+                    <button onclick="exportDaDiPDF()" class="bg-rose-600 hover:bg-rose-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5">
+                        <i class="fa-solid fa-file-pdf"></i> Xuất PDF
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Tìm Phòng</label>
+                    <input type="text" id="search-phong-da-di" oninput="renderDaDi()" placeholder="Số phòng..." class="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Tìm Tên</label>
+                    <input type="text" id="search-ten-da-di" oninput="renderDaDi()" placeholder="Họ tên..." class="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <div class="sm:col-span-3">
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Lọc Số Ngày Đã Đi</label>
+                    <select id="filter-time-da-di" onchange="renderDaDi()" class="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                        <option value="">Tất cả thời gian</option>
+                        <option value="lt30">đi &lt; 30 ngày</option>
+                        <option value="gt30">đi &gt; 30 ngày</option>
+                        <option value="gt60">đi &gt; 60 ngày</option>
+                        <option value="gt90">đi &gt; 90 ngày</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Bảng Dữ Liệu Đã Đi -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="overflow-x-auto max-h-[500px]">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead class="sticky top-0 z-10 bg-slate-100 shadow-xs">
+                            <tr class="text-slate-700 font-bold border-b border-slate-200">
+                                <th class="p-3 w-12 text-center">STT</th>
+                                <th class="p-3 w-28 text-center">Số ngày đi</th>
+                                <th class="p-3 w-24">Số Phòng</th>
+                                <th class="p-3 w-40">Họ Tên</th>
+                                <th class="p-3 w-24">Ngày Sinh</th>
+                                <th class="p-3 w-20">Giới Tính</th>
+                                <th class="p-3 w-32">Số CCCD</th>
+                                <th class="p-3">Địa Chỉ Thường Trú</th>
+                                <th class="p-3 w-28 text-center">Ngày Đến</th>
+                                <th class="p-3 w-36 text-center">Ngày Đi</th>
+                                <th class="p-3 w-24 text-center">Thao Tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-da-di-body" class="divide-y divide-slate-200">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= 3. TAG CCCD ================= -->
+        <div id="tab-cccd" class="tab-content hidden space-y-5">
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap justify-between items-center gap-3">
+                <div class="flex items-center gap-2">
+                    <button onclick="switchCccdSubTab('nhan-phong')" id="btn-subtab-nhan" class="px-5 py-2.5 rounded-xl text-xs font-bold transition bg-emerald-600 text-white shadow-md shadow-emerald-600/30">
+                        <i class="fa-solid fa-id-card mr-1.5 text-white"></i> Nhận Phòng (<span id="count-nhan">0</span>)
+                    </button>
+                    <button onclick="switchCccdSubTab('tra-phong')" id="btn-subtab-tra" class="px-5 py-2.5 rounded-xl text-xs font-bold transition bg-white text-black hover:bg-slate-100 border border-slate-300">
+                        <i class="fa-solid fa-box-archive mr-1.5 text-black"></i> Trả Phòng (<span id="count-tra">0</span>)
+                    </button>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="exportCccdExcel()" class="bg-emerald-700 hover:bg-emerald-800 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5">
+                        <i class="fa-solid fa-file-excel"></i> Xuất Excel
+                    </button>
+                    <button onclick="exportCccdPDF()" class="bg-rose-600 hover:bg-rose-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5">
+                        <i class="fa-solid fa-file-pdf"></i> Xuất PDF
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-slate-100 p-3 rounded-xl border border-slate-300 flex flex-wrap items-center gap-4 text-xs text-slate-700 shadow-xs">
+                <span class="font-bold text-slate-800"><i class="fa-solid fa-palette text-sky-600 mr-1.5"></i> Chú giải màu sắc thẻ CCCD:</span>
+                <span class="flex items-center gap-1.5 font-bold text-emerald-700"><span class="w-3.5 h-3.5 rounded-full bg-emerald-500 border border-emerald-600 inline-block"></span> Thẻ màu xanh: Đã đủ 2 mặt ảnh CCCD</span>
+                <span class="flex items-center gap-1.5 font-bold text-amber-700"><span class="w-3.5 h-3.5 rounded-full bg-amber-400 border border-amber-500 inline-block"></span> Thẻ màu vàng: Chưa đủ ảnh</span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Tìm Phòng</label>
+                    <input type="text" id="search-phong-cccd" oninput="renderCccd()" placeholder="Số phòng..." class="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Tìm Tên</label>
+                    <input type="text" id="search-ten-cccd" oninput="renderCccd()" placeholder="Họ tên..." class="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Lọc Trạng Thái Ảnh</label>
+                    <select id="filter-img-cccd" onchange="renderCccd()" class="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                        <option value="">Tất cả</option>
+                        <option value="du">Đã đủ ảnh</option>
+                        <option value="chua">Chưa đủ ảnh</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="cccd-cards-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            </div>
+        </div>
+
+        <!-- ================= 4. TAG TỔNG HỢP ================= -->
+        <div id="tab-tong-hop" class="tab-content hidden space-y-6">
+            <div class="bg-white p-10 rounded-2xl shadow-sm border border-slate-200 text-center space-y-3">
+                <div class="w-16 h-16 bg-gradient-to-br from-sky-400 to-indigo-500 text-white rounded-2xl flex items-center justify-center mx-auto text-2xl shadow-lg shadow-sky-500/30">
+                    <i class="fa-solid fa-chart-pie text-white"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-800">Tag Tổng Hợp</h3>
+                <p class="text-sm text-slate-500 max-w-md mx-auto">Khu vực này hiện đang để trống theo yêu cầu của bạn.</p>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ================= MODALS ================= -->
+
+    <!-- Modal Thêm Người Ở -->
+    <div id="add-person-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-user-plus text-emerald-600"></i> Thêm Người Ở Mới
+                </h3>
+                <button onclick="closeAddPersonModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">Số Phòng <span class="text-rose-500">*</span></label>
+                    <input type="text" id="modal-so-phong" placeholder="VD: 101" class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">Họ Tên <span class="text-rose-500">*</span></label>
+                    <input type="text" id="modal-ho-ten" placeholder="VD: Nguyễn Văn A" class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">Ngày Đến</label>
+                    <input type="date" id="modal-ngay-den" class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">Ngày Sinh</label>
+                    <input type="text" id="modal-ngay-sinh" placeholder="VD: 15/08/1995" class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">Giới Tính</label>
+                    <select id="modal-gioi-tinh" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                        <option value="Nam">Nam</option>
+                        <option value="Nữ">Nữ</option>
+                        <option value="Khác">Khác</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">Số CCCD</label>
+                    <input type="text" id="modal-cccd" placeholder="VD: 079195123456" class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <div class="sm:col-span-2">
+                    <label class="block font-semibold text-slate-600 mb-1">Địa Chỉ Thường Trú</label>
+                    <input type="text" id="modal-dia-chi" placeholder="VD: Quận 1, TP.HCM" class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-3 border-t">
+                <button onclick="closeAddPersonModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-medium">Hủy</button>
+                <button onclick="confirmAddPerson()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm">Xác Nhận Thêm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Nhập Nhanh -->
+    <div id="quick-import-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-bolt text-indigo-600"></i> Nhập Nhanh Nhiều Người Ở
+                </h3>
+                <button onclick="closeQuickImportModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+            </div>
+            <div class="space-y-2 text-xs">
+                <label class="block font-semibold text-slate-600">Dán danh sách (Mỗi dòng 1 người)</label>
+                <textarea id="quick-import-textarea" rows="8" placeholder="101, Nguyễn Văn A, 1995, Nam, 079195000111, TP.HCM" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono"></textarea>
+            </div>
+            <div class="flex justify-end gap-2 pt-3 border-t">
+                <button onclick="closeQuickImportModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-medium">Hủy</button>
+                <button onclick="confirmQuickImport()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm">Xử Lý & Thêm Nhanh</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Sửa Người Ở -->
+    <div id="edit-person-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-pen text-indigo-600"></i> Chỉnh Sửa Thông Tin Người Ở
+                </h3>
+                <button onclick="closeEditPersonModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+            </div>
+            <input type="hidden" id="edit-id">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">Số Phòng <span class="text-rose-500">*</span></label>
+                    <input type="text" id="edit-so-phong" class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">Họ Tên <span class="text-rose-500">*</span></label>
+                    <input type="text" id="edit-ho-ten" class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">Ngày Đến</label>
+                    <input type="date" id="edit-ngay-den" class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">Ngày Sinh</label>
+                    <input type="text" id="edit-ngay-sinh" class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">Giới Tính</label>
+                    <select id="edit-gioi-tinh" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                        <option value="Nam">Nam</option>
+                        <option value="Nữ">Nữ</option>
+                        <option value="Khác">Khác</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">Số CCCD</label>
+                    <input type="text" id="edit-cccd" class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+                <div class="sm:col-span-2">
+                    <label class="block font-semibold text-slate-600 mb-1">Địa Chỉ Thường Trú</label>
+                    <input type="text" id="edit-dia-chi" class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-3 border-t">
+                <button onclick="closeEditPersonModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-medium">Hủy</button>
+                <button onclick="confirmEditPerson()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm">Lưu Thay Đổi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Xem Nhanh Ảnh CCCD Trực Tiếp -->
+    <div id="quick-view-cccd-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 id="quick-view-title" class="text-base font-bold text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-id-card text-sky-600"></i> Ảnh CCCD Phòng - Khách
+                </h3>
+                <button onclick="closeQuickViewModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <p class="text-xs font-semibold text-slate-600 mb-1 text-center">Mặt Trước</p>
+                    <div id="quick-view-front-box" class="h-40 border border-slate-300 rounded-xl bg-slate-50 flex items-center justify-center overflow-hidden">
+                        <span class="text-xs text-slate-400 italic">Chưa có ảnh</span>
+                    </div>
+                </div>
+                <div>
+                    <p class="text-xs font-semibold text-slate-600 mb-1 text-center">Mặt Sau</p>
+                    <div id="quick-view-back-box" class="h-40 border border-slate-300 rounded-xl bg-slate-50 flex items-center justify-center overflow-hidden">
+                        <span class="text-xs text-slate-400 italic">Chưa có ảnh</span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end pt-2 border-t">
+                <button onclick="closeQuickViewModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-bold">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Đổi Mật Khẩu -->
+    <div id="change-password-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl space-y-4">
+            <div class="flex justify-between items-center border-b pb-2">
+                <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-key text-sky-600"></i> Đổi Mật Khẩu Khóa Trang
+                </h3>
+                <button onclick="closeChangePasswordModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">&times;</button>
+            </div>
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">Mật khẩu hiện tại</label>
+                    <input type="password" id="pwd-old" placeholder="Nhập mật khẩu cũ..." class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">Mật khẩu mới</label>
+                    <input type="password" id="pwd-new" placeholder="Nhập mật khẩu mới..." class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-600 mb-1">Xác nhận mật khẩu mới</label>
+                    <input type="password" id="pwd-confirm" placeholder="Nhập lại mật khẩu mới..." class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeChangePasswordModal()" class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-medium">Hủy</button>
+                <button onclick="confirmChangePassword()" class="px-3.5 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-xs font-bold shadow-sm">Lưu Mật Khẩu</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Phóng To Ảnh CCCD -->
+    <div id="img-zoom-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[200] flex items-center justify-center hidden p-4" onclick="closeImgZoom()">
+        <div class="relative max-w-4xl w-full max-h-[90vh] flex items-center justify-center" onclick="event.stopPropagation()">
+            <button onclick="closeImgZoom()" class="absolute -top-10 right-0 text-white hover:text-sky-400 text-3xl font-bold">&times;</button>
+            <img id="zoomed-img-element" src="" class="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl border border-slate-700 bg-black">
+        </div>
+    </div>
+
+    <!-- Alert Modal -->
+    <div id="custom-alert-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl space-y-4 text-center">
+            <div id="alert-icon" class="text-emerald-600 text-4xl mb-2">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
+            <h4 id="alert-title" class="font-bold text-slate-800 text-lg">Thông Báo</h4>
+            <p id="alert-message" class="text-sm text-slate-600">Nội dung thông báo...</p>
+            <button onclick="closeCustomAlert()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-sm shadow-sm transition">Đóng</button>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        function getTodayYMD() {
+            const today = new Date();
+            const y = today.getFullYear();
+            const m = String(today.getMonth() + 1).padStart(2, '0');
+            const d = String(today.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        function formatDateDisplay(ymd) {
+            if (!ymd) return '';
+            const parts = ymd.split('-');
+            if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+            return ymd;
+        }
+
+        // THÔNG TIN KẾT NỐI SUPABASE CỦA ANH/CHỊ
+        const SUPABASE_URL = 'https://bzvcapaibqlyljbgcwpg.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_tUt3-Nrqsj1fqAILbFyO5g_SePyDfuZ';
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let db = {
+            appPassword: "123",
+            dangO: [],
+	    daDi: []
+        };
+
+        // HÀM TẢI DỮ LIỆU TỪ SUPABASE KHI MỞ TRANG
+        async function loadData() {
+            try {
+                const { data, error } = await _supabase
+                    .from('app_storage')
+                    .select('*')
+                    .eq('id', 'vuon_xuan_data')
+                    .single();
+                
+                if (data && data.data) {
+                    db = data.data;
+                }
+            } catch(e) {
+                console.log("Đang dùng dữ liệu cục bộ dự phòng", e);
+                const saved = localStorage.getItem('quan_ly_nguoi_o_v2_db');
+                if (saved) {
+                    try { db = JSON.parse(saved); } catch(err) { console.error(err); }
+                }
+            }
+            sortRooms();
+        }
+
+        // HÀM LƯU DỮ LIỆU LÊN SUPABASE TỰ ĐỘNG KHI CÓ THAY ĐỔI
+        async function saveData() {
+            sortRooms();
+            try {
+                const { error } = await _supabase
+                    .from('app_storage')
+                    .upsert({
+                        id: 'vuon_xuan_data',
+                        data: db,
+                        updated_at: new Date()
+                    });
+                if (error) {
+                    console.error("Lỗi lưu Supabase:", error.message);
+                }
+            } catch(e) {
+                console.error("Không kết nối được Supabase:", e);
+            }
+            // Lưu dự phòng cục bộ trên trình duyệt đề phòng mất mạng
+            localStorage.setItem('quan_ly_nguoi_o_v2_db', JSON.stringify(db));
+        }
+
+        function sortRooms() {
+            const sortFn = (a, b) => (a.soPhong || '').localeCompare(b.soPhong || '', undefined, { numeric: true, sensitivity: 'base' });
+            db.dangO.sort(sortFn);
+            db.daDi.sort(sortFn);
+        }
+
+        function checkAppPassword() {
+            const pwdInput = document.getElementById('app-password-input');
+            const errorMsg = document.getElementById('auth-error-msg');
+            if (pwdInput && pwdInput.value === db.appPassword) {
+                document.getElementById('auth-overlay').classList.add('hidden');
+                pwdInput.value = '';
+                if (errorMsg) errorMsg.classList.add('hidden');
+                sessionStorage.setItem('app_authenticated', 'true');
+            } else if (errorMsg) {
+                errorMsg.classList.remove('hidden');
+                if (pwdInput) pwdInput.focus();
+            }
+        }
+
+        function lockApp() {
+            sessionStorage.removeItem('app_authenticated');
+            document.getElementById('auth-overlay').classList.remove('hidden');
+            setTimeout(() => document.getElementById('app-password-input').focus(), 100);
+        }
+
+        function openChangePasswordModal() {
+            document.getElementById('pwd-old').value = '';
+            document.getElementById('pwd-new').value = '';
+            document.getElementById('pwd-confirm').value = '';
+            document.getElementById('change-password-modal').classList.remove('hidden');
+        }
+
+        function closeChangePasswordModal() {
+            document.getElementById('change-password-modal').classList.add('hidden');
+        }
+
+        function confirmChangePassword() {
+            const oldPwd = document.getElementById('pwd-old').value;
+            const newPwd = document.getElementById('pwd-new').value;
+            const confirmPwd = document.getElementById('pwd-confirm').value;
+
+            if (oldPwd !== db.appPassword) {
+                showAlert("Lỗi", "Mật khẩu hiện tại không chính xác!", false);
+                return;
+            }
+            if (!newPwd || newPwd.trim() === '') {
+                showAlert("Lỗi", "Mật khẩu mới không được để trống!", false);
+                return;
+            }
+            if (newPwd !== confirmPwd) {
+                showAlert("Lỗi", "Mật khẩu xác nhận không khớp!", false);
+                return;
+            }
+
+            db.appPassword = newPwd;
+            saveData();
+            closeChangePasswordModal();
+            showAlert("Thành Công", "Đã thay đổi mật khẩu thành công!");
+        }
+
+        function showAlert(title, message, isSuccess = true) {
+            const modal = document.getElementById('custom-alert-modal');
+            document.getElementById('alert-title').innerText = title;
+            document.getElementById('alert-message').innerText = message;
+            const icon = document.getElementById('alert-icon');
+            if (isSuccess) {
+                icon.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-600"></i>';
+            } else {
+                icon.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-rose-500"></i>';
+            }
+            modal.classList.remove('hidden');
+        }
+
+        function closeCustomAlert() {
+            document.getElementById('custom-alert-modal').classList.add('hidden');
+        }
+
+        function switchTab(targetId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            
+            // Unselected: Chữ và icon màu đen, nền trắng
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.className = "tab-btn px-5 py-2.5 text-sm font-bold rounded-xl transition whitespace-nowrap bg-white text-black hover:bg-slate-100 border border-slate-300 flex items-center gap-2";
+                const icon = btn.querySelector('i');
+                if (icon) icon.className = icon.className.replace(/text-white/g, 'text-black');
+            });
+
+            document.getElementById(targetId).classList.remove('hidden');
+            const activeBtn = document.querySelector(`[data-target="${targetId}"]`);
+            if (activeBtn) {
+                // Selected: Màu xanh dương loang pastel giống logo hệ thống, chữ & icon đổi thành màu trắng
+                activeBtn.className = "tab-btn px-5 py-2.5 text-sm font-bold rounded-xl transition whitespace-nowrap bg-gradient-to-r from-sky-300 via-sky-400 to-indigo-400 text-white shadow-md shadow-sky-300/30 border border-sky-300 flex items-center gap-2";
+                const icon = activeBtn.querySelector('i');
+                if (icon) icon.className = icon.className.replace(/text-black/g, 'text-white');
+            }
+            renderAll();
+		if (targetId === 'tab-cccd') {
+                switchCccdSubTab('nhan-phong'); 
+	    }
+		
+        }
+
+        function renderAll() {
+            renderDangO();
+            renderDaDi();
+            
+        }
+
+        // --- XEM NHANH ẢNH CCCD TRỰC TIẾP ---
+        function openQuickViewCccd(id, isDaDi = false) {
+            const list = isDaDi ? db.daDi : db.dangO;
+            const p = list.find(x => x.id === id);
+            if (!p) return;
+
+            document.getElementById('quick-view-title').innerHTML = `<i class="fa-solid fa-id-card text-sky-600"></i> Ảnh CCCD Phòng ${p.soPhong} - ${p.hoTen}`;
+            
+            const frontBox = document.getElementById('quick-view-front-box');
+            const backBox = document.getElementById('quick-view-back-box');
+
+            if (p.frontImg) {
+                frontBox.innerHTML = `<img src="${p.frontImg}" class="w-full h-full object-cover cursor-pointer rounded-lg" onclick="zoomImg('${p.frontImg}')" title="Phóng to ảnh">`;
+            } else {
+                frontBox.innerHTML = `<span class="text-xs text-slate-400 italic">Chưa có ảnh mặt trước</span>`;
+            }
+
+            if (p.backImg) {
+                backBox.innerHTML = `<img src="${p.backImg}" class="w-full h-full object-cover cursor-pointer rounded-lg" onclick="zoomImg('${p.backImg}')" title="Phóng to ảnh">`;
+            } else {
+                backBox.innerHTML = `<span class="text-xs text-slate-400 italic">Chưa có ảnh mặt sau</span>`;
+            }
+
+            document.getElementById('quick-view-cccd-modal').classList.remove('hidden');
+        }
+
+        function closeQuickViewModal() {
+            document.getElementById('quick-view-cccd-modal').classList.add('hidden');
+        }
+
+        // --- 1. TAG ĐANG Ở ---
+        function openAddPersonModal() {
+            document.getElementById('modal-so-phong').value = '';
+            document.getElementById('modal-ho-ten').value = '';
+            document.getElementById('modal-ngay-den').value = getTodayYMD();
+            document.getElementById('modal-ngay-sinh').value = '';
+            document.getElementById('modal-gioi-tinh').value = 'Nam';
+            document.getElementById('modal-cccd').value = '';
+            document.getElementById('modal-dia-chi').value = '';
+            document.getElementById('add-person-modal').classList.remove('hidden');
+            setTimeout(() => document.getElementById('modal-so-phong').focus(), 100);
+        }
+
+        function closeAddPersonModal() {
+            document.getElementById('add-person-modal').classList.add('hidden');
+        }
+
+        function confirmAddPerson() {
+            const soPhong = document.getElementById('modal-so-phong').value.trim();
+            const hoTen = document.getElementById('modal-ho-ten').value.trim();
+            const ngayDen = document.getElementById('modal-ngay-den').value || getTodayYMD();
+            const ngaySinh = document.getElementById('modal-ngay-sinh').value.trim();
+            const gioiTinh = document.getElementById('modal-gioi-tinh').value;
+            const cccd = document.getElementById('modal-cccd').value.trim();
+            const diaChi = document.getElementById('modal-dia-chi').value.trim();
+
+            if (!soPhong || !hoTen) {
+                showAlert("Lỗi", "Bắt buộc phải nhập ô Số Phòng và Họ Tên!", false);
+                return;
+            }
+
+            db.dangO.push({
+                id: 'p_' + Date.now() + Math.random().toString(36).substr(2, 5),
+                soPhong, hoTen, ngayDen, ngaySinh, gioiTinh, cccd, diaChi,
+                frontImg: '', backImg: ''
+            });
+
+            saveData();
+            closeAddPersonModal();
+            renderAll();
+            
+            // Dùng setTimeout nhỏ để modal thêm đóng hẳn rồi mới hiện bảng thông báo thành công
+            setTimeout(() => {
+                showAlert("Thành Công", `Đã thêm thành công ${hoTen} vào phòng ${soPhong}!`);
+            }, 200);
+        }
+
+        function openQuickImportModal() {
+            document.getElementById('quick-import-textarea').value = '';
+            document.getElementById('quick-import-modal').classList.remove('hidden');
+        }
+
+        function closeQuickImportModal() {
+            document.getElementById('quick-import-modal').classList.add('hidden');
+        }
+
+        function confirmQuickImport() {
+            const text = document.getElementById('quick-import-textarea').value.trim();
+            if (!text) { showAlert("Lỗi", "Vui lòng nhập dữ liệu cần thêm!", false); return; }
+
+            const lines = text.split('\n');
+            let count = 0;
+            lines.forEach(line => {
+                const parts = line.split(/[,;\t]/).map(p => p.trim());
+                if (parts.length >= 2 && parts[0] && parts[1]) {
+                    db.dangO.push({
+                        id: 'p_' + Date.now() + Math.random().toString(36).substr(2, 5),
+                        soPhong: parts[0], hoTen: parts[1], ngaySinh: parts[2] || '',
+                        gioiTinh: parts[3] || 'Nam', cccd: parts[4] || '', diaChi: parts[5] || '',
+                        ngayDen: parts[6] || getTodayYMD(), frontImg: '', backImg: ''
+                    });
+                    count++;
+                }
+            });
+
+            if (count > 0) {
+                saveData();
+                closeQuickImportModal();
+                renderAll();
+                showAlert("Thành Công", `Đã nhập nhanh thành công ${count} người ở!`);
+            } else {
+                showAlert("Lỗi", "Không tìm thấy dòng dữ liệu hợp lệ.", false);
+            }
+        }
+
+        // --- ĐỌC EXCEL TOÀN DIỆN (CHẤP NHẬN MỌI ĐỊNH DẠNG / TÊN CỘT) ---
+        function importExcelDangO(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    let json = [];
+                    workbook.SheetNames.forEach(sheetName => {
+                        const sheet = workbook.Sheets[sheetName];
+                        const sheetData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+                        json = json.concat(sheetData);
+                    });
+
+                    let count = 0;
+                    json.forEach(row => {
+                        const keys = Object.keys(row);
+                        const values = Object.values(row).map(v => String(v).trim());
+
+                        const getVal = (keywords) => {
+                            for (let k of keys) {
+                                const lowerKey = k.toLowerCase().trim();
+                                if (keywords.some(kw => lowerKey.includes(kw))) {
+                                    return String(row[k]).trim();
+                                }
+                            }
+                            return '';
+                        };
+
+                        let soPhong = getVal(['phong', 'room', 'số phòng', 'phòng']);
+                        let hoTen = getVal(['tên', 'name', 'họ tên', 'hoten', 'hovaten']);
+                        let ngayDen = getVal(['đến', 'vào', 'arrive', 'ngayden', 'ngày đến']) || getTodayYMD();
+                        let ngaySinh = getVal(['sinh', 'birth', 'ngaysinh', 'ngày sinh']);
+                        let gioiTinh = getVal(['giới', 'gender', 'sex', 'gioitinh']);
+                        let cccd = getVal(['cccd', 'cmnd', 'căn cước', 'canccuoc', 'identity']);
+                        let diaChi = getVal(['địa chỉ', 'address', 'thường trú', 'diachi']);
+
+                        if (!soPhong && values.length > 0) soPhong = values[1] || values[0];
+                        if (!hoTen && values.length > 1) hoTen = values[2] || values[1];
+                        if (!ngaySinh && values.length > 2) ngaySinh = values[3] || '';
+                        if (!gioiTinh && values.length > 3) gioiTinh = values[4] || 'Nam';
+                        if (!cccd && values.length > 4) cccd = values[5] || '';
+                        if (!diaChi && values.length > 5) diaChi = values[6] || '';
+
+                        if (soPhong && hoTen && soPhong.toLowerCase() !== 'số phòng' && hoTen.toLowerCase() !== 'họ tên') {
+                            db.dangO.push({
+                                id: 'p_' + Date.now() + Math.random().toString(36).substr(2, 5),
+                                soPhong, hoTen, ngayDen, ngaySinh, gioiTinh: gioiTinh || 'Nam', cccd, diaChi,
+                                frontImg: '', backImg: ''
+                            });
+                            count++;
+                        }
+                    });
+
+                    if (count > 0) {
+                        saveData();
+                        renderAll();
+                        showAlert("Thành Công", `Đã nhập thành công ${count} người ở từ file Excel!`);
+                    } else {
+                        showAlert("Lỗi", "Không đọc được dữ liệu phù hợp từ file Excel. Vui lòng kiểm tra lại cấu trúc file.", false);
+                    }
+                } catch(err) {
+                    console.error(err);
+                    showAlert("Lỗi", "Không thể đọc file Excel!", false);
+                }
+                event.target.value = '';
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function renderDangO() {
+            const tbody = document.getElementById('table-dang-o-body');
+            tbody.innerHTML = '';
+
+            const sPhong = document.getElementById('search-phong-dang-o').value.toLowerCase();
+            const sTen = document.getElementById('search-ten-dang-o').value.toLowerCase();
+
+            const filtered = db.dangO.filter(p => (p.soPhong || '').toLowerCase().includes(sPhong) && (p.hoTen || '').toLowerCase().includes(sTen));
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-slate-400 italic">Không có dữ liệu người đang ở.</td></tr>`;
+                return;
+            }
+
+            filtered.forEach((p, idx) => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition";
+                tr.innerHTML = `
+                    <td class="p-3 text-center font-semibold text-slate-500">${idx + 1}</td>
+                    <td class="p-3 font-bold text-slate-800">${p.soPhong}</td>
+                    <td class="p-3 font-semibold text-slate-700">${p.hoTen}</td>
+                    <td class="p-3 text-slate-600">${p.ngaySinh || ''}</td>
+                    <td class="p-3 text-slate-600">${p.gioiTinh || ''}</td>
+                    <td class="p-3 text-slate-600 font-mono">${p.cccd || ''}</td>
+                    <td class="p-3 text-slate-600">${p.diaChi || ''}</td>
+                    <td class="p-3 text-center text-emerald-700 font-medium">${formatDateDisplay(p.ngayDen)}</td>
+                    <td class="p-3 text-center">
+                        <div class="flex items-center justify-center gap-1.5">
+                            <button onclick="openEditPersonModal('${p.id}')" class="w-7 h-7 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 flex items-center justify-center transition" title="Sửa thông tin">
+                                <i class="fa-solid fa-pen text-xs"></i>
+                            </button>
+                            <button onclick="openQuickViewCccd('${p.id}', false)" class="w-7 h-7 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-600 border border-sky-200 flex items-center justify-center transition" title="Xem ảnh CCCD nhanh">
+                                <i class="fa-solid fa-eye text-xs"></i>
+                            </button>
+                            <button onclick="traPhongPerson('${p.id}')" class="w-7 h-7 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-600 border border-amber-200 flex items-center justify-center transition" title="Trả phòng">
+                                <i class="fa-solid fa-right-from-bracket text-xs"></i>
+                            </button>
+                            <button onclick="deleteDangOPerson('${p.id}')" class="w-7 h-7 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 flex items-center justify-center transition" title="Xóa">
+                                <i class="fa-solid fa-trash text-xs"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function openEditPersonModal(id) {
+            const p = db.dangO.find(x => x.id === id);
+            if (!p) return;
+            document.getElementById('edit-id').value = p.id;
+            document.getElementById('edit-so-phong').value = p.soPhong;
+            document.getElementById('edit-ho-ten').value = p.hoTen;
+            document.getElementById('edit-ngay-den').value = p.ngayDen || getTodayYMD();
+            document.getElementById('edit-ngay-sinh').value = p.ngaySinh || '';
+            document.getElementById('edit-gioi-tinh').value = p.gioiTinh || 'Nam';
+            document.getElementById('edit-cccd').value = p.cccd || '';
+            document.getElementById('edit-dia-chi').value = p.diaChi || '';
+            document.getElementById('edit-person-modal').classList.remove('hidden');
+        }
+
+        function closeEditPersonModal() {
+            document.getElementById('edit-person-modal').classList.add('hidden');
+        }
+
+        function confirmEditPerson() {
+            const id = document.getElementById('edit-id').value;
+            const p = db.dangO.find(x => x.id === id);
+            if (!p) return;
+
+            p.soPhong = document.getElementById('edit-so-phong').value.trim();
+            p.hoTen = document.getElementById('edit-ho-ten').value.trim();
+            p.ngayDen = document.getElementById('edit-ngay-den').value || getTodayYMD();
+            p.ngaySinh = document.getElementById('edit-ngay-sinh').value.trim();
+            p.gioiTinh = document.getElementById('edit-gioi-tinh').value;
+            p.cccd = document.getElementById('edit-cccd').value.trim();
+            p.diaChi = document.getElementById('edit-dia-chi').value.trim();
+
+            saveData();
+            closeEditPersonModal();
+            renderAll();
+            showAlert("Thành Công", "Đã cập nhật thông tin thành công!");
+        }
+
+        function traPhongPerson(id) {
+            const idx = db.dangO.findIndex(x => x.id === id);
+            if (idx === -1) return;
+            const p = db.dangO.splice(idx, 1)[0];
+            p.ngayDi = getTodayYMD();
+            db.daDi.push(p);
+            saveData();
+            renderAll();
+            showAlert("Thành Công", `Ông/Bà ${p.hoTen} đã trả phòng`);
+        }
+
+        function deleteDangOPerson(id) {
+            if (confirm("Xóa bản ghi này?")) {
+                db.dangO = db.dangO.filter(x => x.id !== id);
+                saveData();
+                renderAll();
+            }
+        }
+
+
+        // --- 2. TAG ĐÃ ĐI ---
+        function calculateDaysGoneByDate(ngayDiYMD) {
+            if (!ngayDiYMD) return 0;
+            const parts = ngayDiYMD.split('-');
+            if (parts.length !== 3) return 0;
+            const leaveDate = new Date(parts[0], parts[1] - 1, parts[2]);
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            leaveDate.setHours(0,0,0,0);
+            const diffTime = today - leaveDate;
+            const days = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            return days < 0 ? 0 : days;
+        }
+
+        function updateNgayDi(id, newDateVal) {
+            const p = db.daDi.find(x => x.id === id);
+            if (p) {
+                p.ngayDi = newDateVal;
+                saveData();
+                renderDaDi();
+            }
+        }
+
+        function renderDaDi() {
+            const tbody = document.getElementById('table-da-di-body');
+            tbody.innerHTML = '';
+
+            const sPhong = document.getElementById('search-phong-da-di').value.toLowerCase();
+            const sTen = document.getElementById('search-ten-da-di').value.toLowerCase();
+            const filterTime = document.getElementById('filter-time-da-di').value;
+
+            const filtered = db.daDi.filter(p => {
+                const matchPhong = (p.soPhong || '').toLowerCase().includes(sPhong);
+                const matchTen = (p.hoTen || '').toLowerCase().includes(sTen);
+                const days = calculateDaysGoneByDate(p.ngayDi);
+                let matchTime = true;
+                if (filterTime === 'lt30') matchTime = days < 30;
+                else if (filterTime === 'gt30') matchTime = days >= 30;
+                else if (filterTime === 'gt60') matchTime = days >= 60;
+                else if (filterTime === 'gt90') matchTime = days >= 90;
+                return matchPhong && matchTen && matchTime;
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="11" class="p-6 text-center text-slate-400 italic">Không có dữ liệu người đã đi.</td></tr>`;
+                return;
+            }
+
+            filtered.forEach((p, idx) => {
+                const days = calculateDaysGoneByDate(p.ngayDi);
+                let badgeColor = "bg-slate-100 text-slate-700";
+                if (days >= 90) badgeColor = "bg-rose-100 text-rose-700 font-bold";
+                else if (days >= 60) badgeColor = "bg-amber-100 text-amber-700 font-bold";
+                else if (days >= 30) badgeColor = "bg-sky-100 text-sky-700 font-bold";
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition";
+                tr.innerHTML = `
+                    <td class="p-3 text-center font-semibold text-slate-500">${idx + 1}</td>
+                    <td class="p-3 text-center"><span class="px-2.5 py-1 rounded-full text-xs ${badgeColor}">${days} ngày</span></td>
+                    <td class="p-3 font-bold text-slate-800">${p.soPhong}</td>
+                    <td class="p-3 font-semibold text-slate-700">${p.hoTen}</td>
+                    <td class="p-3 text-slate-600">${p.ngaySinh || ''}</td>
+                    <td class="p-3 text-slate-600">${p.gioiTinh || ''}</td>
+                    <td class="p-3 text-slate-600 font-mono">${p.cccd || ''}</td>
+                    <td class="p-3 text-slate-600">${p.diaChi || ''}</td>
+                    <td class="p-3 text-center text-slate-600">${formatDateDisplay(p.ngayDen)}</td>
+                    <td class="p-3 text-center">
+                        <input type="date" value="${p.ngayDi || getTodayYMD()}" onchange="updateNgayDi('${p.id}', this.value)" class="px-2 py-1 border border-slate-300 rounded text-xs bg-white font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    </td>
+                    <td class="p-3 text-center">
+                        <div class="flex items-center justify-center gap-1.5">
+                            <button onclick="openQuickViewCccd('${p.id}', true)" class="w-7 h-7 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-600 border border-sky-200 flex items-center justify-center transition" title="Xem ảnh CCCD nhanh">
+                                <i class="fa-solid fa-eye text-xs"></i>
+                            </button>
+                            <button onclick="deleteDaDiPerson('${p.id}')" class="w-7 h-7 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 flex items-center justify-center transition" title="Xóa bỏ">
+                                <i class="fa-solid fa-trash text-xs"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function deleteDaDiPerson(id) {
+            if (confirm("Xóa bản ghi này?")) {
+                db.daDi = db.daDi.filter(x => x.id !== id);
+                saveData();
+                renderAll();
+            }
+        }
+
+
+        // --- 3. TAG CCCD ---
+        function switchCccdSubTab(sub) {
+            currentCccdSubTab = sub;
+            const btnNhan = document.getElementById('btn-subtab-nhan');
+            const btnTra = document.getElementById('btn-subtab-tra');
+            if (sub === 'nhan-phong') {
+                btnNhan.className = "px-5 py-2.5 rounded-xl text-xs font-bold transition bg-emerald-600 text-white shadow-md shadow-emerald-600/30";
+                btnNhan.querySelector('i').className = "fa-solid fa-id-card mr-1.5 text-white";
+                
+                btnTra.className = "px-5 py-2.5 rounded-xl text-xs font-bold transition bg-white text-black hover:bg-slate-100 border border-slate-300";
+                btnTra.querySelector('i').className = "fa-solid fa-box-archive mr-1.5 text-black";
+            } else {
+                btnTra.className = "px-5 py-2.5 rounded-xl text-xs font-bold transition bg-emerald-600 text-white shadow-md shadow-emerald-600/30";
+                btnTra.querySelector('i').className = "fa-solid fa-box-archive mr-1.5 text-white";
+
+                btnNhan.className = "px-5 py-2.5 rounded-xl text-xs font-bold transition bg-white text-black hover:bg-slate-100 border border-slate-300";
+                btnNhan.querySelector('i').className = "fa-solid fa-id-card mr-1.5 text-black";
+            }
+            renderCccd();
+        }
+
+        function renderCccd() {
+            document.getElementById('count-nhan').innerText = db.dangO.length;
+            document.getElementById('count-tra').innerText = db.daDi.length;
+
+            const container = document.getElementById('cccd-cards-container');
+            container.innerHTML = '';
+
+            const list = currentCccdSubTab === 'nhan-phong' ? db.dangO : db.daDi;
+            const isEditable = currentCccdSubTab === 'nhan-phong';
+
+            const sPhong = document.getElementById('search-phong-cccd').value.toLowerCase();
+            const sTen = document.getElementById('search-ten-cccd').value.toLowerCase();
+            const filterImg = document.getElementById('filter-img-cccd').value;
+
+            const filtered = list.filter(p => {
+                const matchPhong = (p.soPhong || '').toLowerCase().includes(sPhong);
+                const matchTen = (p.hoTen || '').toLowerCase().includes(sTen);
+                const isFull = Boolean(p.frontImg && p.backImg);
+                let matchImg = true;
+                if (filterImg === 'du') matchImg = isFull;
+                else if (filterImg === 'chua') matchImg = !isFull;
+                return matchPhong && matchTen && matchImg;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 italic">Không tìm thấy thẻ CCCD nào phù hợp.</div>`;
+                return;
+            }
+
+            filtered.forEach(p => {
+                const isFull = Boolean(p.frontImg && p.backImg);
+                const cardBorder = isFull ? 'border-emerald-400 bg-emerald-50/30 ring-1 ring-emerald-300' : 'border-amber-400 bg-amber-50/30 ring-1 ring-amber-300';
+
+                const card = document.createElement('div');
+                card.className = `rounded-2xl border ${cardBorder} shadow-sm overflow-hidden flex flex-col bg-white transition hover:shadow-md`;
+                card.innerHTML = `
+                    <div class="bg-slate-100 border-b border-slate-200 p-2.5 text-center font-bold text-slate-800 text-xs">
+                        Phòng ${p.soPhong} - ${p.hoTen}
+                    </div>
+                    <div class="grid grid-cols-2 divide-x divide-slate-200 p-2 gap-2 flex-grow items-center">
+                        <div class="relative h-28 border border-dashed border-slate-300 rounded-xl flex items-center justify-center overflow-hidden bg-slate-50">
+                            ${p.frontImg ? `
+                                <img src="${p.frontImg}" class="w-full h-full object-cover cursor-pointer" onclick="zoomImg('${p.frontImg}')">
+                                ${isEditable ? `<button onclick="removeImg('${p.id}', 'front')" class="absolute top-1 right-1 w-5 h-5 bg-rose-600 text-white rounded-full flex items-center justify-center text-[10px] font-bold">&times;</button>` : ''}
+                            ` : (isEditable ? `<label class="w-full h-full flex items-center justify-center cursor-pointer text-slate-400 italic text-[11px] hover:text-emerald-600">Mặt trước<input type="file" accept="image/*" class="hidden" onchange="uploadImg(event, '${p.id}', 'front')"></label>` : `<span class="text-slate-400 italic text-[11px]">Mặt trước</span>`)}
+                        </div>
+                        <div class="relative h-28 border border-dashed border-slate-300 rounded-xl flex items-center justify-center overflow-hidden bg-slate-50">
+                            ${p.backImg ? `
+                                <img src="${p.backImg}" class="w-full h-full object-cover cursor-pointer" onclick="zoomImg('${p.backImg}')">
+                                ${isEditable ? `<button onclick="removeImg('${p.id}', 'back')" class="absolute top-1 right-1 w-5 h-5 bg-rose-600 text-white rounded-full flex items-center justify-center text-[10px] font-bold">&times;</button>` : ''}
+                            ` : (isEditable ? `<label class="w-full h-full flex items-center justify-center cursor-pointer text-slate-400 italic text-[11px] hover:text-emerald-600">Mặt sau<input type="file" accept="image/*" class="hidden" onchange="uploadImg(event, '${p.id}', 'back')"></label>` : `<span class="text-slate-400 italic text-[11px]">Mặt sau</span>`)}
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // --- HÀM NÉN ẢNH TỰ ĐỘNG ĐỂ TỐI ƯU KHI LƯU TRỮ SUPABASE ---
+        function compressImage(file, maxWidth = 1000, maxHeight = 1000, quality = 0.7) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const img = new Image();
+                    img.onload = function () {
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > height) {
+                            if (width > maxWidth) {
+                                height = Math.round((height * maxWidth) / width);
+                                width = maxWidth;
+                            }
+                        } else {
+                            if (height > maxHeight) {
+                                width = Math.round((width * maxHeight) / height);
+                                height = maxHeight;
+                            }
+                        }
+
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        // Xuất ra định dạng JPEG với chất lượng đã nén (mặc định 0.7) giúp giảm dung lượng đáng kể
+                        resolve(canvas.toDataURL('image/jpeg', quality));
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function uploadImg(event, id, type) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            // Tiến hành nén ảnh trước khi lưu vào cơ sở dữ liệu
+            const compressedDataUrl = await compressImage(file, 1000, 1000, 0.7);
+
+            const p = db.dangO.find(x => x.id === id);
+            if (p) {
+                if (type === 'front') p.frontImg = compressedDataUrl;
+                else p.backImg = compressedDataUrl;
+                saveData();
+                renderCccd();
+            }
+        }
+
+        function removeImg(id, type) {
+            const p = db.dangO.find(x => x.id === id);
+            if (p) {
+                if (type === 'front') p.frontImg = '';
+                else p.backImg = '';
+                saveData();
+                renderCccd();
+            }
+        }
+
+        function zoomImg(src) {
+            document.getElementById('zoomed-img-element').src = src;
+            document.getElementById('img-zoom-modal').classList.remove('hidden');
+        }
+
+        function closeImgZoom() {
+            document.getElementById('img-zoom-modal').classList.add('hidden');
+        }
+
+        function getFormattedDate() {
+            const now = new Date();
+            return `${String(now.getDate()).padStart(2, '0')}-${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`;
+        }
+
+        function generateAndDownloadPDF(element, filename) {
+            html2pdf().set({
+                margin: [10, 10, 10, 10], filename: filename,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+            }).from(element).save().then(() => document.body.removeChild(element));
+        }
+
+        function exportDangOExcel() {
+            if (db.dangO.length === 0) { showAlert("Thông báo", "Không có dữ liệu!", false); return; }
+            const data = db.dangO.map((p, i) => ({
+                "STT": i + 1, "Số Phòng": p.soPhong, "Họ Tên": p.hoTen, "Ngày Sinh": p.ngaySinh, "Giới Tính": p.gioiTinh, "Số CCCD": p.cccd, "Địa Chỉ": p.diaChi, "Ngày Đến": formatDateDisplay(p.ngayDen)
+            }));
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Dang_O");
+            XLSX.writeFile(wb, `Danh_Sach_Dang_O_${getFormattedDate()}.xlsx`);
+        }
+
+        function exportDangOPDF() {
+            if (db.dangO.length === 0) { showAlert("Thông báo", "Không có dữ liệu!", false); return; }
+            const wrapper = document.createElement('div');
+            wrapper.className = 'pdf-export-container';
+            let rows = '';
+            db.dangO.forEach((p, i) => {
+                rows += `<tr><td style="text-align:center;">${i+1}</td><td style="font-weight:bold; text-align:center;">${p.soPhong}</td><td>${p.hoTen}</td><td style="text-align:center;">${p.ngaySinh||''}</td><td style="text-align:center;">${p.gioiTinh||''}</td><td>${p.cccd||''}</td><td>${p.diaChi||''}</td><td style="text-align:center;">${formatDateDisplay(p.ngayDen)}</td></tr>`;
+            });
+            wrapper.innerHTML = `<h2 style="font-size:16px; font-weight:bold;">DANH SÁCH NGƯỜI ĐANG Ở</h2><table><thead><tr><th>STT</th><th>Phòng</th><th>Họ Tên</th><th>Ngày Sinh</th><th>Giới Tính</th><th>CCCD</th><th>Địa Chỉ</th><th>Ngày Đến</th></tr></thead><tbody>${rows}</tbody></table>`;
+            document.body.appendChild(wrapper);
+            generateAndDownloadPDF(wrapper, `Danh_Sach_Dang_O_${getFormattedDate()}.pdf`);
+        }
+
+        function exportDaDiExcel() {
+            if (db.daDi.length === 0) { showAlert("Thông báo", "Không có dữ liệu!", false); return; }
+            const data = db.daDi.map((p, i) => ({
+                "STT": i + 1, "Số Ngày Đi": calculateDaysGoneByDate(p.ngayDi) + " ngày", "Số Phòng": p.soPhong, "Họ Tên": p.hoTen, "Ngày Sinh": p.ngaySinh, "Giới Tính": p.gioiTinh, "CCCD": p.cccd, "Địa Chỉ": p.diaChi, "Ngày Đến": formatDateDisplay(p.ngayDen), "Ngày Đi": formatDateDisplay(p.ngayDi)
+            }));
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Da_Di");
+            XLSX.writeFile(wb, `Danh_Sach_Da_Di_${getFormattedDate()}.xlsx`);
+        }
+
+        function exportDaDiPDF() {
+            if (db.daDi.length === 0) { showAlert("Thông báo", "Không có dữ liệu!", false); return; }
+            const wrapper = document.createElement('div');
+            wrapper.className = 'pdf-export-container';
+            let rows = '';
+            db.daDi.forEach((p, i) => {
+                rows += `<tr><td style="text-align:center;">${i+1}</td><td style="text-align:center;">${calculateDaysGoneByDate(p.ngayDi)} ngày</td><td style="font-weight:bold; text-align:center;">${p.soPhong}</td><td>${p.hoTen}</td><td>${p.ngaySinh||''}</td><td>${p.cccd||''}</td><td>${p.diaChi||''}</td><td style="text-align:center;">${formatDateDisplay(p.ngayDen)}</td><td style="text-align:center;">${formatDateDisplay(p.ngayDi)}</td></tr>`;
+            });
+            wrapper.innerHTML = `<h2 style="font-size:16px; font-weight:bold;">DANH SÁCH NGƯỜI ĐÃ ĐI</h2><table><thead><tr><th>STT</th><th>Số ngày đi</th><th>Phòng</th><th>Họ Tên</th><th>Ngày Sinh</th><th>CCCD</th><th>Địa Chỉ</th><th>Ngày Đến</th><th>Ngày Đi</th></tr></thead><tbody>${rows}</tbody></table>`;
+            document.body.appendChild(wrapper);
+            generateAndDownloadPDF(wrapper, `Danh_Sach_Da_Di_${getFormattedDate()}.pdf`);
+        }
+
+        function exportCccdExcel() {
+            const list = currentCccdSubTab === 'nhan-phong' ? db.dangO : db.daDi;
+            if (list.length === 0) { showAlert("Thông báo", "Không có dữ liệu!", false); return; }
+            const data = list.map((p, i) => ({
+                "STT": i + 1, "Số Phòng": p.soPhong, "Họ Tên": p.hoTen, "CCCD": p.cccd, "Trạng Thái": (p.frontImg && p.backImg) ? "Đủ ảnh" : "Chưa đủ"
+            }));
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "CCCD");
+            XLSX.writeFile(wb, `Danh_Sach_CCCD_${getFormattedDate()}.xlsx`);
+        }
+
+        function exportCccdPDF() {
+            const list = currentCccdSubTab === 'nhan-phong' ? db.dangO : db.daDi;
+            if (list.length === 0) { showAlert("Thông báo", "Không có dữ liệu!", false); return; }
+            const wrapper = document.createElement('div');
+            wrapper.className = 'pdf-export-container';
+            let rows = '';
+            list.forEach((p, i) => {
+                rows += `<tr><td style="text-align:center;">${i+1}</td><td style="font-weight:bold; text-align:center;">${p.soPhong}</td><td>${p.hoTen}</td><td>${p.cccd||''}</td></tr>`;
+            });
+            wrapper.innerHTML = `<h2 style="font-size:16px; font-weight:bold;">DANH SÁCH CCCD</h2><table><thead><tr><th>STT</th><th>Phòng</th><th>Họ Tên</th><th>CCCD</th></tr></thead><tbody>${rows}</tbody></table>`;
+            document.body.appendChild(wrapper);
+            generateAndDownloadPDF(wrapper, `Danh_Sach_CCCD_${getFormattedDate()}.pdf`);
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && (e.key === 'l' || e.key === 'L')) {
+                e.preventDefault();
+                lockApp();
+            }
+        });
+
+        window.onload = async function() {
+            await loadData();
+            if (sessionStorage.getItem('app_authenticated') === 'true') {
+                document.getElementById('auth-overlay').classList.add('hidden');
+            } else {
+                setTimeout(() => document.getElementById('app-password-input').focus(), 100);
+            }
+            renderAll();
+        };
+    </script>
+</body>
+</html>
