@@ -1131,7 +1131,7 @@
                 if (filterImg === 'du') matchImg = isFull;
                 else if (filterImg === 'chua') matchImg = !isFull;
                 return matchPhong && matchTen && matchImg;
-            });
+           });
 
             if (filtered.length === 0) {
                 container.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 italic">Không tìm thấy thẻ CCCD nào phù hợp.</div>`;
@@ -1243,19 +1243,19 @@
         }
 
         window.addEventListener('paste', async function(e) {
-            if (!activeCccdBox) return;
-            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
-            for (let item of items) {
-                if (item.type.indexOf('image') === 0) {
-                    const file = item.getAsFile();
-                    if (file) {
-                        e.preventDefault();
-                        await processAndSaveImage(file, activeCccdBox.id, activeCccdBox.type);
-                        break;
-                    }
-                }
+    if (!activeCccdBox) return;
+    const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+    for (let item of items) {
+        if (item.type.indexOf('image') === 0) {
+            const file = item.getAsFile();
+            if (file) {
+                e.preventDefault();
+                await processAndSaveImage(file, activeCccdBox.id, activeCccdBox.type);
+                break;
             }
-        });
+        }
+    }
+});
 		
         function removeImg(id, type) {
             const p = db.dangO.find(x => x.id === id);
