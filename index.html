@@ -88,7 +88,6 @@
     <header class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
         <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row justify-between items-center gap-3">
             <div class="flex items-center gap-3">
-                <!-- LOGO XANH DƯƠNG PASTEL LOANG ĐẸP MẮT -->
                 <div class="w-12 h-12 bg-gradient-to-br from-sky-300 via-sky-400 to-indigo-400 text-white rounded-2xl shadow-md shadow-sky-300/50 flex items-center justify-center text-xl">
                     <i class="fa-solid fa-users"></i>
                 </div>
@@ -279,9 +278,10 @@
             </div>
 
             <div class="bg-slate-100 p-3 rounded-xl border border-slate-300 flex flex-wrap items-center gap-4 text-xs text-slate-700 shadow-xs">
-                <span class="font-bold text-slate-800"><i class="fa-solid fa-palette text-sky-600 mr-1.5"></i> Chú giải màu sắc thẻ CCCD:</span>
-                <span class="flex items-center gap-1.5 font-bold text-emerald-700"><span class="w-3.5 h-3.5 rounded-full bg-emerald-500 border border-emerald-600 inline-block"></span> Thẻ màu xanh: Đã đủ 2 mặt ảnh CCCD</span>
-                <span class="flex items-center gap-1.5 font-bold text-amber-700"><span class="w-3.5 h-3.5 rounded-full bg-amber-400 border border-amber-500 inline-block"></span> Thẻ màu vàng: Chưa đủ ảnh</span>
+                <span class="font-bold text-slate-800"><i class="fa-solid fa-palette text-sky-600 mr-1.5"></i> Chú giải:</span>
+                <span class="flex items-center gap-1.5 font-bold text-emerald-700"><span class="w-3.5 h-3.5 rounded-full bg-emerald-500 border border-emerald-600 inline-block"></span> Đã đủ ảnh</span>
+                <span class="flex items-center gap-1.5 font-bold text-amber-700"><span class="w-3.5 h-3.5 rounded-full bg-amber-400 border border-amber-500 inline-block"></span> Chưa đủ ảnh</span>
+                
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
@@ -372,7 +372,7 @@
         </div>
     </div>
 
-    <!-- Modal Nhập Nhanh -->
+    <!-- Modal Nhập Nhanh Thông Minh (Theo Hệ Thống 1) -->
     <div id="quick-import-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center hidden p-4">
         <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4">
             <div class="flex justify-between items-center border-b pb-3">
@@ -382,12 +382,14 @@
                 <button onclick="closeQuickImportModal()" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
             </div>
             <div class="space-y-2 text-xs">
-                <label class="block font-semibold text-slate-600">Dán danh sách (Mỗi dòng 1 người)</label>
-                <textarea id="quick-import-textarea" rows="8" placeholder="101, Nguyễn Văn A, 1995, Nam, 079195000111, TP.HCM" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono"></textarea>
+                <label class="block font-semibold text-slate-600">Dán danh sách (Mỗi dòng 5 trường: Họ tên, Ngày sinh, Giới tính, Số CCCD, Địa chỉ):</label>
+                <textarea id="quick-import-textarea" rows="7" placeholder="Nguyễn Văn A | 15/08/1995 | Nam | 079195000111 | TP.HCM" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono"></textarea>
+                <div id="quick-import-error" class="text-rose-500 font-semibold min-h-[18px]"></div>
+                <div id="quick-import-preview" class="max-h-40 overflow-y-auto border border-slate-200 rounded-xl p-3 bg-slate-50 text-xs"></div>
             </div>
             <div class="flex justify-end gap-2 pt-3 border-t">
                 <button onclick="closeQuickImportModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-medium">Hủy</button>
-                <button onclick="confirmQuickImport()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm">Xử Lý & Thêm Nhanh</button>
+                <button id="quick-import-confirm-btn" onclick="confirmQuickImport()" disabled class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white rounded-xl text-xs font-bold shadow-sm transition">Nhập Danh Sách</button>
             </div>
         </div>
     </div>
@@ -547,8 +549,10 @@
         let db = {
             appPassword: "123",
             dangO: [],
-	    daDi: []
+	        daDi: []
         };
+        let currentCccdSubTab = 'nhan-phong';
+        let openRoomsState = {}; // Ghi nhớ trạng thái mở rộng/thu gọn của từng phòng
 
         // HÀM TẢI DỮ LIỆU TỪ SUPABASE KHI MỞ TRANG
         async function loadData() {
@@ -575,26 +579,52 @@
         // HÀM LƯU DỮ LIỆU LÊN SUPABASE TỰ ĐỘNG KHI CÓ THAY ĐỔI
         async function saveData() {
             sortRooms();
+            localStorage.setItem('quan_ly_nguoi_o_v2_db', JSON.stringify(db));
             try {
-                const { error } = await _supabase
+                const { data: existing } = await _supabase
                     .from('app_storage')
-                    .upsert({
-                        id: 'vuon_xuan_data',
-                        data: db,
-                        updated_at: new Date()
-                    });
+                    .select('id')
+                    .eq('id', 'vuon_xuan_data')
+                    .maybeSingle();
+
+                let error;
+                if (existing) {
+                    const res = await _supabase
+                        .from('app_storage')
+                        .update({ data: db, updated_at: new Date() })
+                        .eq('id', 'vuon_xuan_data');
+                    error = res.error;
+                } else {
+                    const res = await _supabase
+                        .from('app_storage')
+                        .insert({ id: 'vuon_xuan_data', data: db, updated_at: new Date() });
+                    error = res.error;
+                }
+
                 if (error) {
                     console.error("Lỗi lưu Supabase:", error.message);
+                    showAlert("Lỗi Lưu Supabase", error.message, false);
                 }
             } catch(e) {
                 console.error("Không kết nối được Supabase:", e);
+                showAlert("Lỗi Kết Nối", e.message || "Không thể kết nối máy chủ dữ liệu.", false);
             }
-            // Lưu dự phòng cục bộ trên trình duyệt đề phòng mất mạng
-            localStorage.setItem('quan_ly_nguoi_o_v2_db', JSON.stringify(db));
         }
 
+        // QUY TẮC SẮP XẾP PHÒNG CHUẨN TOÀN HỆ THỐNG: Ưu tiên ký tự cuối (A-Z) trước, sau đó xét phần số tăng dần
         function sortRooms() {
-            const sortFn = (a, b) => (a.soPhong || '').localeCompare(b.soPhong || '', undefined, { numeric: true, sensitivity: 'base' });
+            const sortFn = (a, b) => {
+                const roomA = (a.soPhong || '').trim();
+                const roomB = (b.soPhong || '').trim();
+                const lastA = (roomA.slice(-1) || '').toUpperCase();
+                const lastB = (roomB.slice(-1) || '').toUpperCase();
+                if (lastA !== lastB) {
+                    return lastA.localeCompare(lastB);
+                }
+                const prefixA = roomA.slice(0, -1);
+                const prefixB = roomB.slice(0, -1);
+                return prefixA.localeCompare(prefixB, undefined, { numeric: true, sensitivity: 'base' });
+            };
             db.dangO.sort(sortFn);
             db.daDi.sort(sortFn);
         }
@@ -674,7 +704,6 @@
         function switchTab(targetId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             
-            // Unselected: Chữ và icon màu đen, nền trắng
             document.querySelectorAll('.tab-btn').forEach(btn => {
                 btn.className = "tab-btn px-5 py-2.5 text-sm font-bold rounded-xl transition whitespace-nowrap bg-white text-black hover:bg-slate-100 border border-slate-300 flex items-center gap-2";
                 const icon = btn.querySelector('i');
@@ -684,25 +713,21 @@
             document.getElementById(targetId).classList.remove('hidden');
             const activeBtn = document.querySelector(`[data-target="${targetId}"]`);
             if (activeBtn) {
-                // Selected: Màu xanh dương loang pastel giống logo hệ thống, chữ & icon đổi thành màu trắng
                 activeBtn.className = "tab-btn px-5 py-2.5 text-sm font-bold rounded-xl transition whitespace-nowrap bg-gradient-to-r from-sky-300 via-sky-400 to-indigo-400 text-white shadow-md shadow-sky-300/30 border border-sky-300 flex items-center gap-2";
                 const icon = activeBtn.querySelector('i');
                 if (icon) icon.className = icon.className.replace(/text-black/g, 'text-white');
             }
             renderAll();
-		if (targetId === 'tab-cccd') {
+            if (targetId === 'tab-cccd') {
                 switchCccdSubTab('nhan-phong'); 
-	    }
-		
+            }
         }
 
         function renderAll() {
             renderDangO();
             renderDaDi();
-            
         }
 
-        // --- XEM NHANH ẢNH CCCD TRỰC TIẾP ---
         function openQuickViewCccd(id, isDaDi = false) {
             const list = isDaDi ? db.daDi : db.dangO;
             const p = list.find(x => x.id === id);
@@ -732,7 +757,6 @@
             document.getElementById('quick-view-cccd-modal').classList.add('hidden');
         }
 
-        // --- 1. TAG ĐANG Ở ---
         function openAddPersonModal() {
             document.getElementById('modal-so-phong').value = '';
             document.getElementById('modal-ho-ten').value = '';
@@ -773,14 +797,17 @@
             closeAddPersonModal();
             renderAll();
             
-            // Dùng setTimeout nhỏ để modal thêm đóng hẳn rồi mới hiện bảng thông báo thành công
             setTimeout(() => {
                 showAlert("Thành Công", `Đã thêm thành công ${hoTen} vào phòng ${soPhong}!`);
             }, 200);
         }
 
+        // --- HỆ THỐNG NHẬP NHANH THÔNG MINH ---
         function openQuickImportModal() {
             document.getElementById('quick-import-textarea').value = '';
+            document.getElementById('quick-import-preview').innerHTML = '';
+            document.getElementById('quick-import-error').innerText = '';
+            document.getElementById('quick-import-confirm-btn').disabled = true;
             document.getElementById('quick-import-modal').classList.remove('hidden');
         }
 
@@ -788,36 +815,105 @@
             document.getElementById('quick-import-modal').classList.add('hidden');
         }
 
-        function confirmQuickImport() {
-            const text = document.getElementById('quick-import-textarea').value.trim();
-            if (!text) { showAlert("Lỗi", "Vui lòng nhập dữ liệu cần thêm!", false); return; }
-
-            const lines = text.split('\n');
-            let count = 0;
-            lines.forEach(line => {
-                const parts = line.split(/[,;\t]/).map(p => p.trim());
-                if (parts.length >= 2 && parts[0] && parts[1]) {
-                    db.dangO.push({
-                        id: 'p_' + Date.now() + Math.random().toString(36).substr(2, 5),
-                        soPhong: parts[0], hoTen: parts[1], ngaySinh: parts[2] || '',
-                        gioiTinh: parts[3] || 'Nam', cccd: parts[4] || '', diaChi: parts[5] || '',
-                        ngayDen: parts[6] || getTodayYMD(), frontImg: '', backImg: ''
-                    });
-                    count++;
-                }
-            });
-
-            if (count > 0) {
-                saveData();
-                closeQuickImportModal();
-                renderAll();
-                showAlert("Thành Công", `Đã nhập nhanh thành công ${count} người ở!`);
-            } else {
-                showAlert("Lỗi", "Không tìm thấy dòng dữ liệu hợp lệ.", false);
-            }
+        function normalizeGioiTinh(str) {
+            if (!str) return "Nam";
+            const s = str.trim().toLowerCase();
+            if (s === "nam") return "Nam";
+            if (s === "nữ" || s === "nu") return "Nữ";
+            if (s === "khác" || s === "khac") return "Khác";
+            return "Nam";
         }
 
-        // --- ĐỌC EXCEL TOÀN DIỆN (CHẤP NHẬN MỌI ĐỊNH DẠNG / TÊN CỘT) ---
+        function parseInputData(text) {
+            if (!text || !text.trim()) return { error: "Dữ liệu trống." };
+            const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+            let rows = [];
+
+            for (const line of lines) {
+                let parts = line.split("\t");
+                if (parts.length >= 5) { rows.push(parts.map(p => p.trim())); continue; }
+                parts = line.split("|");
+                if (parts.length >= 5) { rows.push(parts.map(p => p.trim())); continue; }
+                parts = line.split(";");
+                if (parts.length >= 5) { rows.push(parts.map(p => p.trim())); continue; }
+                parts = line.split(",");
+                if (parts.length >= 5) { rows.push(parts.map(p => p.trim())); continue; }
+                
+                return { error: `Dòng không đủ 5 trường phân cách (Họ tên, Ngày sinh, Giới tính, CCCD, Địa chỉ): "${line}"` };
+            }
+
+            const persons = [];
+            for (let i = 0; i < rows.length; i++) {
+                const r = rows[i];
+                const hoTen = r[0];
+                const ngaySinh = r[1] || '';
+                const gioiTinh = normalizeGioiTinh(r[2]);
+                const cccd = r[3] || '';
+                const diaChi = r[4] || '';
+
+                if (!hoTen) return { error: `Dòng ${i + 1}: Họ tên trống.` };
+                persons.push({ hoTen, ngaySinh, gioiTinh, cccd, diaChi });
+            }
+
+            if (persons.length === 0) return { error: "Không tìm thấy dữ liệu hợp lệ." };
+            return { persons };
+        }
+
+        document.getElementById('quick-import-textarea').addEventListener('input', function() {
+            const text = this.value;
+            const previewBox = document.getElementById('quick-import-preview');
+            const errorBox = document.getElementById('quick-import-error');
+            const confirmBtn = document.getElementById('quick-import-confirm-btn');
+
+            previewBox.innerHTML = '';
+            errorBox.innerText = '';
+            confirmBtn.disabled = true;
+
+            if (!text.trim()) return;
+
+            const result = parseInputData(text);
+            if (result.error) {
+                errorBox.innerText = result.error;
+            } else if (result.persons && result.persons.length > 0) {
+                let html = `<div class="font-bold text-slate-700 mb-1">Tổng số dòng hợp lệ: ${result.persons.length}</div>`;
+                result.persons.forEach((p, idx) => {
+                    html += `<div class="text-[11px] text-slate-600 border-b border-slate-200 py-1"><b>${idx+1}.</b> ${p.hoTen} | ${p.ngaySinh} | ${p.gioiTinh} | ${p.cccd} | ${p.diaChi}</div>`;
+                });
+                previewBox.innerHTML = html;
+                confirmBtn.disabled = false;
+            }
+        });
+
+        function confirmQuickImport() {
+            const text = document.getElementById('quick-import-textarea').value;
+            const result = parseInputData(text);
+            if (result.error || !result.persons) return;
+
+            const defaultPhong = prompt("Nhập Số Phòng cho toàn bộ danh sách khách nhập nhanh này:", "101");
+            if (!defaultPhong || !defaultPhong.trim()) return;
+
+            let count = 0;
+            result.persons.forEach(p => {
+                db.dangO.push({
+                    id: 'p_' + Date.now() + Math.random().toString(36).substr(2, 5),
+                    soPhong: defaultPhong.trim(),
+                    hoTen: p.hoTen,
+                    ngaySinh: p.ngaySinh,
+                    gioiTinh: p.gioiTinh,
+                    cccd: p.cccd,
+                    diaChi: p.diaChi,
+                    ngayDen: getTodayYMD(),
+                    frontImg: '', backImg: ''
+                });
+                count++;
+            });
+
+            saveData();
+            closeQuickImportModal();
+            renderAll();
+            showAlert("Thành Công", `Đã nhập nhanh thành công ${count} người ở vào phòng ${defaultPhong}!`);
+        }
+
         function importExcelDangO(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -993,8 +1089,6 @@
             }
         }
 
-
-        // --- 2. TAG ĐÃ ĐI ---
         function calculateDaysGoneByDate(ngayDiYMD) {
             if (!ngayDiYMD) return 0;
             const parts = ngayDiYMD.split('-');
@@ -1087,8 +1181,6 @@
             }
         }
 
-
-        // --- 3. TAG CCCD ---
         function switchCccdSubTab(sub) {
             currentCccdSubTab = sub;
             const btnNhan = document.getElementById('btn-subtab-nhan');
@@ -1110,6 +1202,18 @@
         }
 
         function renderCccd() {
+            // Ghi nhớ vị trí cuộn trang hiện tại để không bị nhảy lên đầu trang
+            const scrollY = window.scrollY;
+
+            // Ghi nhớ trạng thái mở rộng/thu gọn của các folder phòng hiện tại
+            document.querySelectorAll('#cccd-cards-container > div[data-room]').forEach(el => {
+                const roomName = el.getAttribute('data-room');
+                const body = el.querySelector('.folder-body');
+                if (body) {
+                    openRoomsState[roomName] = (body.style.display !== 'none');
+                }
+            });
+
             document.getElementById('count-nhan').innerText = db.dangO.length;
             document.getElementById('count-tra').innerText = db.daDi.length;
 
@@ -1135,39 +1239,176 @@
 
             if (filtered.length === 0) {
                 container.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 italic">Không tìm thấy thẻ CCCD nào phù hợp.</div>`;
+                window.scrollTo(0, scrollY);
                 return;
             }
 
-            filtered.forEach(p => {
-                const isFull = Boolean(p.frontImg && p.backImg);
-                const cardBorder = isFull ? 'border-emerald-400 bg-emerald-50/30 ring-1 ring-emerald-300' : 'border-amber-400 bg-amber-50/30 ring-1 ring-amber-300';
+            if (currentCccdSubTab === 'nhan-phong') {
+                const roomMap = {};
+                filtered.forEach(p => {
+                    const room = p.soPhong || 'Khác';
+                    if (!roomMap[room]) roomMap[room] = [];
+                    roomMap[room].push(p);
+                });
 
-                const card = document.createElement('div');
-                card.className = `rounded-2xl border ${cardBorder} shadow-sm overflow-hidden flex flex-col bg-white transition hover:shadow-md`;
-                card.innerHTML = `
-                    <div class="bg-slate-100 border-b border-slate-200 p-2.5 text-center font-bold text-slate-800 text-xs">
-                        Phòng ${p.soPhong} - ${p.hoTen}
-                    </div>
-                    <div class="grid grid-cols-2 divide-x divide-slate-200 p-2 gap-2 flex-grow items-center">
-                        <div tabindex="0" onfocus="activeCccdBox = { id: '${p.id}', type: 'front' }" class="relative h-28 border border-dashed border-slate-300 rounded-xl flex items-center justify-center overflow-hidden bg-slate-50 focus:ring-2 focus:ring-sky-500 focus:outline-none cursor-pointer" ondragover="event.preventDefault()" ondrop="handleDropImg(event, '${p.id}', 'front')">
-                            ${p.frontImg ? `
-                                <img src="${p.frontImg}" class="w-full h-full object-cover cursor-pointer" onclick="zoomImg('${p.frontImg}')">
-                                ${isEditable ? `<button onclick="removeImg('${p.id}', 'front')" class="absolute top-1 right-1 w-5 h-5 bg-rose-600 text-white rounded-full flex items-center justify-center text-[10px] font-bold">&times;</button>` : ''}
-                            ` : (isEditable ? `<label class="w-full h-full flex items-center justify-center cursor-pointer text-slate-400 italic text-[11px] hover:text-emerald-600">Mặt trước<input type="file" accept="image/*" class="hidden" onchange="uploadImg(event, '${p.id}', 'front')"></label>` : `<span class="text-slate-400 italic text-[11px]">Mặt trước</span>`)}
+                const rooms = Object.keys(roomMap).sort((a, b) => {
+                    const lastA = (a.slice(-1) || '').toUpperCase();
+                    const lastB = (b.slice(-1) || '').toUpperCase();
+                    if (lastA !== lastB) {
+                        return lastA.localeCompare(lastB);
+                    }
+                    const prefixA = a.slice(0, -1);
+                    const prefixB = b.slice(0, -1);
+                    return prefixA.localeCompare(prefixB, undefined, { numeric: true, sensitivity: 'base' });
+                });
+
+                container.className = "space-y-4 col-span-full";
+
+                rooms.forEach(room => {
+                    const members = roomMap[room];
+                    const folderDiv = document.createElement('div');
+                    folderDiv.className = "bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden";
+                    folderDiv.setAttribute('data-room', room);
+
+                    // Kiểm tra trạng thái ảnh của tất cả thành viên trong phòng
+                    const isRoomFull = members.every(p => p.frontImg && p.backImg);
+                    const folderHeaderBg = isRoomFull ? 'bg-emerald-50 border-emerald-200 text-emerald-900 hover:bg-emerald-100/70' : 'bg-amber-50 border-amber-200 text-amber-900 hover:bg-amber-100/70';
+                    const folderIconColor = isRoomFull ? 'text-emerald-600' : 'text-amber-600';
+
+                    // Mặc định thu gọn (false) trừ khi đã được người dùng mở trước đó
+                    const isOpen = Boolean(openRoomsState[room]);
+                    const bodyDisplay = isOpen ? 'grid' : 'none';
+                    const chevronTransform = isOpen ? 'rotate(0deg)' : 'rotate(-90deg)';
+                    
+                    let membersHtml = '';
+                    members.forEach(p => {
+                        const isFull = Boolean(p.frontImg && p.backImg);
+                        const cardBorder = isFull ? 'border-emerald-400 bg-emerald-50/30' : 'border-amber-400 bg-amber-50/30';
+                        
+                        membersHtml += `
+                            <div class="rounded-xl border ${cardBorder} p-3 bg-white space-y-2">
+                                <div class="font-bold text-slate-800 text-xs flex justify-between items-center border-b pb-1">
+                                    <span><i class="fa-solid fa-user text-sky-600 mr-1.5"></i>${p.hoTen}</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <!-- Mặt trước -->
+                                    <div class="border border-dashed border-slate-300 rounded-xl overflow-hidden bg-slate-50 flex flex-col">
+                                        <div class="px-2 py-1 bg-slate-100 border-b border-slate-200 flex justify-between items-center text-[10px]">
+                                            <span class="font-semibold italic text-slate-600">Mặt trước</span>
+                                            ${isEditable && !p.frontImg ? `
+                                                <label class="px-2 py-0.5 bg-sky-500 hover:bg-sky-600 text-white rounded font-bold cursor-pointer shadow-xs flex items-center gap-1 transition" onclick="event.stopPropagation()">
+                                                    <i class="fa-solid fa-folder-open"></i> Chọn file
+                                                    <input type="file" accept="image/*" class="hidden" onchange="uploadImg(event, '${p.id}', 'front')">
+                                                </label>
+                                            ` : ''}
+                                        </div>
+                                        <div contenteditable="true" 
+                                             class="h-28 relative flex items-center justify-center p-2 cursor-pointer transition focus:outline-none focus:ring-2 focus:ring-sky-500 focus:bg-sky-50 outline-none select-none"
+                                             onpaste="handleBoxPaste(event, '${p.id}', 'front')"
+                                             onkeydown="if(event.key.length === 1 && !event.ctrlKey) event.preventDefault();"
+                                             ondragover="event.preventDefault()" 
+                                             ondrop="handleDropImg(event, '${p.id}', 'front')">
+                                            ${p.frontImg ? `
+                                                <img src="${p.frontImg}" class="w-full h-full object-cover cursor-pointer absolute inset-0 z-10" onclick="zoomImg('${p.frontImg}')" title="Click để phóng to ảnh">
+                                                ${isEditable ? `<button onclick="event.stopPropagation(); removeImg('${p.id}', 'front')" class="absolute top-1 right-1 w-5 h-5 bg-rose-600 text-white rounded-full flex items-center justify-center text-[10px] font-bold z-30" title="Xóa ảnh">&times;</button>` : ''}
+                                            ` : `
+                                                <span class="text-[11px] text-slate-400 italic text-center pointer-events-none">Click chuột phải chọn Dán hoặc Ctrl+V</span>
+                                            `}
+                                        </div>
+                                    </div>
+
+                                    <!-- Mặt sau -->
+                                    <div class="border border-dashed border-slate-300 rounded-xl overflow-hidden bg-slate-50 flex flex-col">
+                                        <div class="px-2 py-1 bg-slate-100 border-b border-slate-200 flex justify-between items-center text-[10px]">
+                                            <span class="font-semibold italic text-slate-600">Mặt sau</span>
+                                            ${isEditable && !p.backImg ? `
+                                                <label class="px-2 py-0.5 bg-sky-500 hover:bg-sky-600 text-white rounded font-bold cursor-pointer shadow-xs flex items-center gap-1 transition" onclick="event.stopPropagation()">
+                                                    <i class="fa-solid fa-folder-open"></i> Chọn file
+                                                    <input type="file" accept="image/*" class="hidden" onchange="uploadImg(event, '${p.id}', 'back')">
+                                                </label>
+                                            ` : ''}
+                                        </div>
+                                        <div contenteditable="true" 
+                                             class="h-28 relative flex items-center justify-center p-2 cursor-pointer transition focus:outline-none focus:ring-2 focus:ring-sky-500 focus:bg-sky-50 outline-none select-none"
+                                             onpaste="handleBoxPaste(event, '${p.id}', 'back')"
+                                             onkeydown="if(event.key.length === 1 && !event.ctrlKey) event.preventDefault();"
+                                             ondragover="event.preventDefault()" 
+                                             ondrop="handleDropImg(event, '${p.id}', 'back')">
+                                            ${p.backImg ? `
+                                                <img src="${p.backImg}" class="w-full h-full object-cover cursor-pointer absolute inset-0 z-10" onclick="zoomImg('${p.backImg}')" title="Click để phóng to ảnh">
+                                                ${isEditable ? `<button onclick="event.stopPropagation(); removeImg('${p.id}', 'back')" class="absolute top-1 right-1 w-5 h-5 bg-rose-600 text-white rounded-full flex items-center justify-center text-[10px] font-bold z-30" title="Xóa ảnh">&times;</button>` : ''}
+                                            ` : `
+                                                <span class="text-[11px] text-slate-400 italic text-center pointer-events-none">Click chuột phải chọn Dán hoặc Ctrl+V</span>
+                                            `}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    folderDiv.innerHTML = `
+                        <div class="px-4 py-3 border-b transition flex justify-between items-center cursor-pointer ${folderHeaderBg}" onclick="toggleFolder(this)">
+                            <div class="flex items-center gap-2.5 font-bold text-sm">
+                                <i class="fa-solid fa-folder-open ${folderIconColor} text-base"></i>
+                                <span>Phòng ${room} - ${members.length} người</span>
+                            </div>
+                            <div class="text-xs opacity-80 flex items-center gap-1">
+                                <span>Thu gọn / Mở rộng</span>
+                                <i class="fa-solid fa-chevron-down transition-transform" style="transform: ${chevronTransform}"></i>
+                            </div>
                         </div>
-                        <div tabindex="0" onfocus="activeCccdBox = { id: '${p.id}', type: 'back' }" class="relative h-28 border border-dashed border-slate-300 rounded-xl flex items-center justify-center overflow-hidden bg-slate-50 focus:ring-2 focus:ring-sky-500 focus:outline-none cursor-pointer" ondragover="event.preventDefault()" ondrop="handleDropImg(event, '${p.id}', 'back')">
-                            ${p.backImg ? `
-                                <img src="${p.backImg}" class="w-full h-full object-cover cursor-pointer" onclick="zoomImg('${p.backImg}')">
-                                ${isEditable ? `<button onclick="removeImg('${p.id}', 'back')" class="absolute top-1 right-1 w-5 h-5 bg-rose-600 text-white rounded-full flex items-center justify-center text-[10px] font-bold">&times;</button>` : ''}
-                            ` : (isEditable ? `<label class="w-full h-full flex items-center justify-center cursor-pointer text-slate-400 italic text-[11px] hover:text-emerald-600">Mặt sau<input type="file" accept="image/*" class="hidden" onchange="uploadImg(event, '${p.id}', 'back')"></label>` : `<span class="text-slate-400 italic text-[11px]">Mặt sau</span>`)}
+                        <div class="p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4 folder-body" style="display: ${bodyDisplay};">
+                            ${membersHtml}
                         </div>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
+                    `;
+                    container.appendChild(folderDiv);
+                });
+
+            } else {
+                container.className = "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4";
+                filtered.forEach(p => {
+                    const isFull = Boolean(p.frontImg && p.backImg);
+                    const cardBorder = isFull ? 'border-emerald-400 bg-emerald-50/30 ring-1 ring-emerald-300' : 'border-amber-400 bg-amber-50/30 ring-1 ring-amber-300';
+
+                    const card = document.createElement('div');
+                    card.className = `rounded-2xl border ${cardBorder} shadow-sm overflow-hidden flex flex-col bg-white transition hover:shadow-md`;
+                    card.innerHTML = `
+                        <div class="bg-slate-100 border-b border-slate-200 p-2.5 text-center font-bold text-slate-800 text-xs">
+                            Phòng ${p.soPhong} - ${p.hoTen}
+                        </div>
+                        <div class="grid grid-cols-2 divide-x divide-slate-200 p-2 gap-2 flex-grow items-center">
+                            <div class="relative h-28 border border-dashed border-slate-300 rounded-xl flex items-center justify-center overflow-hidden bg-slate-50">
+                                ${p.frontImg ? `<img src="${p.frontImg}" class="w-full h-full object-cover cursor-pointer absolute inset-0 z-10" onclick="zoomImg('${p.frontImg}')" title="Click để phóng to ảnh">` : `<span class="text-xs text-slate-400 italic">Mặt trước</span>`}
+                            </div>
+                            <div class="relative h-28 border border-dashed border-slate-300 rounded-xl flex items-center justify-center overflow-hidden bg-slate-50">
+                                ${p.backImg ? `<img src="${p.backImg}" class="w-full h-full object-cover cursor-pointer absolute inset-0 z-10" onclick="zoomImg('${p.backImg}')" title="Click để phóng to ảnh">` : `<span class="text-xs text-slate-400 italic">Mặt sau</span>`}
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            }
+
+            // Khôi phục lại vị trí cuộn trang
+            window.scrollTo(0, scrollY);
         }
 
-        // --- HÀM NÉN ẢNH TỰ ĐỘNG ĐỂ TỐI ƯU KHI LƯU TRỮ SUPABASE ---
+        function toggleFolder(headerEl) {
+            const body = headerEl.nextElementSibling;
+            const icon = headerEl.querySelector('.fa-chevron-down');
+            const roomName = headerEl.closest('[data-room]')?.getAttribute('data-room');
+            if (body.style.display === 'none') {
+                body.style.display = 'grid';
+                if(icon) icon.style.transform = 'rotate(0deg)';
+                if(roomName) openRoomsState[roomName] = true;
+            } else {
+                body.style.display = 'none';
+                if(icon) icon.style.transform = 'rotate(-90deg)';
+                if(roomName) openRoomsState[roomName] = false;
+            }
+        }
+
         function compressImage(file, maxWidth = 1000, maxHeight = 1000, quality = 0.7) {
             return new Promise((resolve) => {
                 const reader = new FileReader();
@@ -1195,7 +1436,6 @@
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, width, height);
 
-                        // Xuất ra định dạng JPEG với chất lượng đã nén (mặc định 0.7) giúp giảm dung lượng đáng kể
                         resolve(canvas.toDataURL('image/jpeg', quality));
                     };
                     img.src = e.target.result;
@@ -1207,23 +1447,39 @@
         async function uploadImg(event, id, type) {
             const file = event.target.files[0];
             if (!file) return;
-            
-            // Tiến hành nén ảnh trước khi lưu vào cơ sở dữ liệu
-            const compressedDataUrl = await compressImage(file, 1000, 1000, 0.7);
-
             const p = db.dangO.find(x => x.id === id);
-            if (p) {
-                if (type === 'front') p.frontImg = compressedDataUrl;
-                else p.backImg = compressedDataUrl;
-                saveData();
-                renderCccd();
-            }
-        }
+            if (!p) return;
 
-		let activeCccdBox = null;
+            if (type === 'front' && p.frontImg) {
+                showAlert("Thông Báo", "Ô này đã có ảnh mặt trước! Vui lòng xóa ảnh cũ trước khi thêm ảnh mới.", false);
+                return;
+            }
+            if (type === 'back' && p.backImg) {
+                showAlert("Thông Báo", "Ô này đã có ảnh mặt sau! Vui lòng xóa ảnh cũ trước khi thêm ảnh mới.", false);
+                return;
+            }
+
+            const compressedDataUrl = await compressImage(file, 1000, 1000, 0.7);
+            if (type === 'front') p.frontImg = compressedDataUrl;
+            else p.backImg = compressedDataUrl;
+            saveData();
+            renderCccd();
+        }
 
         async function handleDropImg(event, id, type) {
             event.preventDefault();
+            const p = db.dangO.find(x => x.id === id);
+            if (!p) return;
+
+            if (type === 'front' && p.frontImg) {
+                showAlert("Thông Báo", "Ô này đã có ảnh mặt trước! Vui lòng xóa ảnh cũ trước khi thêm ảnh mới.", false);
+                return;
+            }
+            if (type === 'back' && p.backImg) {
+                showAlert("Thông Báo", "Ô này đã có ảnh mặt sau! Vui lòng xóa ảnh cũ trước khi thêm ảnh mới.", false);
+                return;
+            }
+
             const file = event.dataTransfer.files[0];
             if (file && file.type.startsWith('image/')) {
                 await processAndSaveImage(file, id, type);
@@ -1231,33 +1487,42 @@
         }
 
         async function processAndSaveImage(file, id, type) {
-            // Vẫn dùng lại hàm compressImage(file) có sẵn để tối ưu dung lượng
-            const compressedDataUrl = await compressImage(file, 1000, 1000, 0.7);
             const p = db.dangO.find(x => x.id === id);
-            if (p) {
-                if (type === 'front') p.frontImg = compressedDataUrl;
-                else p.backImg = compressedDataUrl;
-                saveData();
-                renderCccd();
+            if (!p) return;
+            if (type === 'front' && p.frontImg) return;
+            if (type === 'back' && p.backImg) return;
+
+            const compressedDataUrl = await compressImage(file, 1000, 1000, 0.7);
+            if (type === 'front') p.frontImg = compressedDataUrl;
+            else p.backImg = compressedDataUrl;
+            saveData();
+            renderCccd();
+        }
+
+        async function handleBoxPaste(e, id, type) {
+            e.stopPropagation();
+            const p = db.dangO.find(x => x.id === id);
+            if (!p) return;
+
+            if (type === 'front' && p.frontImg) return;
+            if (type === 'back' && p.backImg) return;
+
+            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            for (let item of items) {
+                if (item.type.indexOf('image') === 0) {
+                    const file = item.getAsFile();
+                    if (file) {
+                        e.preventDefault();
+                        await processAndSaveImage(file, id, type);
+                        showAlert("Thành Công", "Đã dán và nén ảnh thành công!");
+                        break;
+                    }
+                }
             }
         }
 
-        window.addEventListener('paste', async function(e) {
-    if (!activeCccdBox) return;
-    const items = (e.clipboardData || e.originalEvent.clipboardData).items;
-    for (let item of items) {
-        if (item.type.indexOf('image') === 0) {
-            const file = item.getAsFile();
-            if (file) {
-                e.preventDefault();
-                await processAndSaveImage(file, activeCccdBox.id, activeCccdBox.type);
-                break;
-            }
-        }
-    }
-});
-		
         function removeImg(id, type) {
+            if (!confirm("Bạn có chắc muốn xóa ảnh này không?")) return;
             const p = db.dangO.find(x => x.id === id);
             if (p) {
                 if (type === 'front') p.frontImg = '';
