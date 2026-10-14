@@ -1149,13 +1149,13 @@
                         Phòng ${p.soPhong} - ${p.hoTen}
                     </div>
                     <div class="grid grid-cols-2 divide-x divide-slate-200 p-2 gap-2 flex-grow items-center">
-                        <div class="relative h-28 border border-dashed border-slate-300 rounded-xl flex items-center justify-center overflow-hidden bg-slate-50">
+                        <div tabindex="0" onfocus="activeCccdBox = { id: '${p.id}', type: 'front' }" class="relative h-28 border border-dashed border-slate-300 rounded-xl flex items-center justify-center overflow-hidden bg-slate-50 focus:ring-2 focus:ring-sky-500 focus:outline-none cursor-pointer" ondragover="event.preventDefault()" ondrop="handleDropImg(event, '${p.id}', 'front')">
                             ${p.frontImg ? `
                                 <img src="${p.frontImg}" class="w-full h-full object-cover cursor-pointer" onclick="zoomImg('${p.frontImg}')">
                                 ${isEditable ? `<button onclick="removeImg('${p.id}', 'front')" class="absolute top-1 right-1 w-5 h-5 bg-rose-600 text-white rounded-full flex items-center justify-center text-[10px] font-bold">&times;</button>` : ''}
                             ` : (isEditable ? `<label class="w-full h-full flex items-center justify-center cursor-pointer text-slate-400 italic text-[11px] hover:text-emerald-600">Mặt trước<input type="file" accept="image/*" class="hidden" onchange="uploadImg(event, '${p.id}', 'front')"></label>` : `<span class="text-slate-400 italic text-[11px]">Mặt trước</span>`)}
                         </div>
-                        <div class="relative h-28 border border-dashed border-slate-300 rounded-xl flex items-center justify-center overflow-hidden bg-slate-50">
+                        <div tabindex="0" onfocus="activeCccdBox = { id: '${p.id}', type: 'back' }" class="relative h-28 border border-dashed border-slate-300 rounded-xl flex items-center justify-center overflow-hidden bg-slate-50 focus:ring-2 focus:ring-sky-500 focus:outline-none cursor-pointer" ondragover="event.preventDefault()" ondrop="handleDropImg(event, '${p.id}', 'back')">
                             ${p.backImg ? `
                                 <img src="${p.backImg}" class="w-full h-full object-cover cursor-pointer" onclick="zoomImg('${p.backImg}')">
                                 ${isEditable ? `<button onclick="removeImg('${p.id}', 'back')" class="absolute top-1 right-1 w-5 h-5 bg-rose-600 text-white rounded-full flex items-center justify-center text-[10px] font-bold">&times;</button>` : ''}
@@ -1220,6 +1220,43 @@
             }
         }
 
+		let activeCccdBox = null;
+
+        async function handleDropImg(event, id, type) {
+            event.preventDefault();
+            const file = event.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                await processAndSaveImage(file, id, type);
+            }
+        }
+
+        async function processAndSaveImage(file, id, type) {
+            // Vẫn dùng lại hàm compressImage(file) có sẵn để tối ưu dung lượng
+            const compressedDataUrl = await compressImage(file, 1000, 1000, 0.7);
+            const p = db.dangO.find(x => x.id === id);
+            if (p) {
+                if (type === 'front') p.frontImg = compressedDataUrl;
+                else p.backImg = compressedDataUrl;
+                saveData();
+                renderCccd();
+            }
+        }
+
+        window.addEventListener('paste', async function(e) {
+            if (!activeCccdBox) return;
+            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            for (let item of items) {
+                if (item.type.indexOf('image') === 0) {
+                    const file = item.getAsFile();
+                    if (file) {
+                        e.preventDefault();
+                        await processAndSaveImage(file, activeCccdBox.id, activeCccdBox.type);
+                        break;
+                    }
+                }
+            }
+        });
+		
         function removeImg(id, type) {
             const p = db.dangO.find(x => x.id === id);
             if (p) {
