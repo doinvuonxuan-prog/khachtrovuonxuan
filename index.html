@@ -14,7 +14,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Supabase JS Client CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
+    
     <style>
         body {
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -62,27 +62,37 @@
 </head>
 <body class="min-h-screen flex flex-col">
 
-    <!-- MÀN HÌNH NHẬP MẬT KHẨU BẢO MẬT -->
-    <div id="auth-overlay" class="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[100] flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl space-y-6 text-center border border-slate-100">
-            <div class="w-16 h-16 bg-gradient-to-br from-sky-400 to-indigo-500 text-white rounded-2xl flex items-center justify-center mx-auto text-2xl shadow-lg shadow-sky-500/30">
-                <i class="fa-solid fa-lock"></i>
+    <!-- MÀN HÌNH ĐĂNG NHẬP HỆ THỐNG -->
+<div id="auth-overlay" class="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl space-y-6 text-center border border-slate-100">
+        <div class="w-16 h-16 bg-gradient-to-br from-sky-400 to-indigo-500 text-white rounded-2xl flex items-center justify-center mx-auto text-2xl shadow-lg shadow-sky-500/30">
+            <i class="fa-solid fa-lock"></i>
+        </div>
+        <div>
+            <h3 class="text-xl font-bold text-slate-800">Đăng Nhập Hệ Thống</h3>
+            <p class="text-xs text-slate-500 mt-1">Khu Trọ Vườn Xuân</p>
+        </div>
+        <div class="space-y-3 text-left">
+            <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Chọn Tài Khoản</label>
+                <select id="app-email-input" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm bg-white focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                    <option value="chutro@vuonxuan.com">chutro@vuonxuan.com</option>
+                    <option value="khach@vuonxuan.com">khach@vuonxuan.com</option>
+                </select>
             </div>
             <div>
-                <h3 class="text-xl font-bold text-slate-800">Xác Nhận Truy Cập</h3>
-                <p class="text-xs text-slate-500 mt-1">Vui lòng nhập mật khẩu để vào phần mềm Quản Lý Người Ở</p>
-            </div>
-            <div class="space-y-3">
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Mật khẩu</label>
                 <input type="password" id="app-password-input" placeholder="Nhập mật khẩu..." 
                     onkeyup="if(event.key === 'Enter') checkAppPassword()"
-                    class="w-full px-4 py-3 rounded-xl border border-slate-300 text-center text-lg font-bold tracking-widest focus:ring-2 focus:ring-sky-500 focus:outline-none">
-                <p id="auth-error-msg" class="text-xs text-rose-500 font-semibold hidden"><i class="fa-solid fa-circle-exclamation mr-1"></i> Mật khẩu không chính xác!</p>
-                <button onclick="checkAppPassword()" class="w-full bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 text-white font-bold py-3 rounded-xl text-sm transition shadow-lg shadow-sky-500/30">
-                    Đăng Nhập
-                </button>
+                    class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-sky-500 focus:outline-none">
             </div>
+            <p id="auth-error-msg" class="text-xs text-rose-500 font-semibold hidden"><i class="fa-solid fa-circle-exclamation mr-1"></i> Email hoặc mật khẩu không chính xác!</p>
+            <button onclick="checkAppPassword()" class="w-full bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 text-white font-bold py-3 rounded-xl text-sm transition shadow-lg shadow-sky-500/30 mt-2">
+                Đăng Nhập
+            </button>
         </div>
     </div>
+</div>
 
     <!-- HEADER -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
@@ -100,9 +110,9 @@
                 <button onclick="lockApp()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 border border-slate-300 shadow-xs" title="Tạm khóa màn hình (Ctrl + L)">
                     <i class="fa-solid fa-lock text-amber-600"></i> Khóa Trang
                 </button>
-                <button onclick="openChangePasswordModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 border border-slate-300 shadow-xs" title="Đổi mật khẩu truy cập">
-                    <i class="fa-solid fa-key text-sky-600"></i> Đổi Mật Khẩu
-                </button>
+                <button onclick="openChangePasswordModal()" id="btn-change-pwd" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 border border-slate-300 shadow-xs" title="Đổi mật khẩu truy cập">
+    		   <i class="fa-solid fa-key text-sky-600"></i> Đổi Mật Khẩu
+		</button>
             </div>
         </div>
 
@@ -137,7 +147,7 @@
                 <button onclick="openQuickImportModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm flex items-center gap-2 transition">
                     <i class="fa-solid fa-bolt"></i> Nhập Nhanh
                 </button>
-                <label class="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm flex items-center gap-2 transition cursor-pointer">
+                <label onclick="if(!isOwnerUser) { showAlert('Thông Báo', 'Quyền hạn không đủ để thao tác', false); event.preventDefault(); return false; }" class="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm flex items-center gap-2 transition cursor-pointer">
                     <i class="fa-solid fa-file-excel"></i> Nhập Từ Excel
                     <input type="file" id="excel-file-input" accept=".xlsx, .xls" class="hidden" onchange="importExcelDangO(event)">
                 </label>
@@ -479,15 +489,11 @@
         <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl space-y-4">
             <div class="flex justify-between items-center border-b pb-2">
                 <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
-                    <i class="fa-solid fa-key text-sky-600"></i> Đổi Mật Khẩu Khóa Trang
+                    <i class="fa-solid fa-key text-sky-600"></i> Đổi Mật Khẩu Tài Khoản
                 </h3>
                 <button onclick="closeChangePasswordModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">&times;</button>
             </div>
             <div class="space-y-3 text-xs">
-                <div>
-                    <label class="block font-semibold text-slate-600 mb-1">Mật khẩu hiện tại</label>
-                    <input type="password" id="pwd-old" placeholder="Nhập mật khẩu cũ..." class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:outline-none">
-                </div>
                 <div>
                     <label class="block font-semibold text-slate-600 mb-1">Mật khẩu mới</label>
                     <input type="password" id="pwd-new" placeholder="Nhập mật khẩu mới..." class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:outline-none">
@@ -526,6 +532,50 @@
 
     <!-- JAVASCRIPT LOGIC -->
     <script>
+
+	function openChangePasswordModal() {
+            if (!isOwnerUser) {
+                showAlert("Thông Báo", "Quyền hạn không đủ để thao tác", false);
+                return;
+            }
+            document.getElementById('pwd-new').value = '';
+            document.getElementById('pwd-confirm').value = '';
+            document.getElementById('change-password-modal').classList.remove('hidden');
+        }
+
+        function closeChangePasswordModal() {
+            document.getElementById('change-password-modal').classList.add('hidden');
+        }
+
+        async function confirmChangePassword() {
+            if (!isOwnerUser) {
+                showAlert("Thông Báo", "Quyền hạn không đủ để thao tác", false);
+                return;
+            }
+            const newPwd = document.getElementById('pwd-new').value;
+            const confirmPwd = document.getElementById('pwd-confirm').value;
+
+            if (!newPwd || newPwd.trim() === '') {
+                showAlert("Lỗi", "Mật khẩu mới không được để trống!", false);
+                return;
+            }
+            if (newPwd !== confirmPwd) {
+                showAlert("Lỗi", "Mật khẩu xác nhận không khớp!", false);
+                return;
+            }
+
+            const { data, error } = await _supabase.auth.updateUser({
+                password: newPwd
+            });
+
+            if (error) {
+                showAlert("Lỗi", error.message, false);
+            } else {
+                closeChangePasswordModal();
+                showAlert("Thành Công", "Đã đổi mật khẩu thành công!");
+            }
+        }
+
         function getTodayYMD() {
             const today = new Date();
             const y = today.getFullYear();
@@ -553,6 +603,7 @@
         };
         let currentCccdSubTab = 'nhan-phong';
         let openRoomsState = {}; // Ghi nhớ trạng thái mở rộng/thu gọn của từng phòng
+        let isOwnerUser = false; // Biến xác định quyền Chủ trọ
 
         // HÀM TẢI DỮ LIỆU TỪ SUPABASE KHI MỞ TRANG
         async function loadData() {
@@ -629,59 +680,65 @@
             db.daDi.sort(sortFn);
         }
 
-        function checkAppPassword() {
-            const pwdInput = document.getElementById('app-password-input');
+        async function checkAppPassword() {
+            const emailInput = document.getElementById('app-email-input').value.trim();
+            const pwdInput = document.getElementById('app-password-input').value;
             const errorMsg = document.getElementById('auth-error-msg');
-            if (pwdInput && pwdInput.value === db.appPassword) {
+
+            if (!emailInput || !pwdInput) {
+                if (errorMsg) {
+                    errorMsg.innerText = "Vui lòng nhập đầy đủ email và mật khẩu!";
+                    errorMsg.classList.remove('hidden');
+                }
+                return;
+            }
+
+            // Gọi API xác thực của Supabase
+            const { data, error } = await _supabase.auth.signInWithPassword({
+                email: emailInput,
+                password: pwdInput
+            });
+
+            if (error) {
+                if (errorMsg) {
+                    errorMsg.innerText = "Mật khẩu không chính xác!";
+                    errorMsg.classList.remove('hidden');
+                }
+                const pwdEl = document.getElementById('app-password-input');
+                if (pwdEl) pwdEl.focus();
+            } else {
                 document.getElementById('auth-overlay').classList.add('hidden');
-                pwdInput.value = '';
                 if (errorMsg) errorMsg.classList.add('hidden');
+                document.getElementById('app-password-input').value = '';
                 sessionStorage.setItem('app_authenticated', 'true');
-            } else if (errorMsg) {
-                errorMsg.classList.remove('hidden');
-                if (pwdInput) pwdInput.focus();
+                
+                // Lưu lại email để phân quyền
+                if (data.user && data.user.email) {
+                    sessionStorage.setItem('user_email', data.user.email);
+                    applyUserPermissions(data.user.email);
+                }
             }
         }
 
-        function lockApp() {
+        async function lockApp() {
+            await _supabase.auth.signOut();
             sessionStorage.removeItem('app_authenticated');
             document.getElementById('auth-overlay').classList.remove('hidden');
             setTimeout(() => document.getElementById('app-password-input').focus(), 100);
         }
 
-        function openChangePasswordModal() {
-            document.getElementById('pwd-old').value = '';
-            document.getElementById('pwd-new').value = '';
-            document.getElementById('pwd-confirm').value = '';
-            document.getElementById('change-password-modal').classList.remove('hidden');
-        }
-
-        function closeChangePasswordModal() {
-            document.getElementById('change-password-modal').classList.add('hidden');
-        }
-
-        function confirmChangePassword() {
-            const oldPwd = document.getElementById('pwd-old').value;
-            const newPwd = document.getElementById('pwd-new').value;
-            const confirmPwd = document.getElementById('pwd-confirm').value;
-
-            if (oldPwd !== db.appPassword) {
-                showAlert("Lỗi", "Mật khẩu hiện tại không chính xác!", false);
-                return;
+        // Hàm phân quyền dựa vào tài khoản đã đăng nhập
+        function applyUserPermissions(email) {
+            isOwnerUser = email.startsWith('chutro');
+            const changePwdBtn = document.getElementById('btn-change-pwd');
+            
+            if (isOwnerUser) {
+                console.log("Quyền: Chủ trọ (Toàn quyền)");
+                if (changePwdBtn) changePwdBtn.style.display = 'flex'; // Hiển thị nút Đổi Mật Khẩu
+            } else {
+                console.log("Quyền: Nhân viên / Khách (Giới hạn)");
+                if (changePwdBtn) changePwdBtn.style.display = 'none'; // Ẩn nút Đổi Mật Khẩu đối với nhân viên
             }
-            if (!newPwd || newPwd.trim() === '') {
-                showAlert("Lỗi", "Mật khẩu mới không được để trống!", false);
-                return;
-            }
-            if (newPwd !== confirmPwd) {
-                showAlert("Lỗi", "Mật khẩu xác nhận không khớp!", false);
-                return;
-            }
-
-            db.appPassword = newPwd;
-            saveData();
-            closeChangePasswordModal();
-            showAlert("Thành Công", "Đã thay đổi mật khẩu thành công!");
         }
 
         function showAlert(title, message, isSuccess = true) {
@@ -758,6 +815,10 @@
         }
 
         function openAddPersonModal() {
+            if (!isOwnerUser) {
+                showAlert("Thông Báo", "Quyền hạn không đủ để thao tác", false);
+                return;
+            }
             document.getElementById('modal-so-phong').value = '';
             document.getElementById('modal-ho-ten').value = '';
             document.getElementById('modal-ngay-den').value = getTodayYMD();
@@ -774,6 +835,10 @@
         }
 
         function confirmAddPerson() {
+            if (!isOwnerUser) {
+                showAlert("Thông Báo", "Quyền hạn không đủ để thao tác", false);
+                return;
+            }
             const soPhong = document.getElementById('modal-so-phong').value.trim();
             const hoTen = document.getElementById('modal-ho-ten').value.trim();
             const ngayDen = document.getElementById('modal-ngay-den').value || getTodayYMD();
@@ -804,6 +869,10 @@
 
         // --- HỆ THỐNG NHẬP NHANH THÔNG MINH ---
         function openQuickImportModal() {
+            if (!isOwnerUser) {
+                showAlert("Thông Báo", "Quyền hạn không đủ để thao tác", false);
+                return;
+            }
             document.getElementById('quick-import-textarea').value = '';
             document.getElementById('quick-import-preview').innerHTML = '';
             document.getElementById('quick-import-error').innerText = '';
@@ -885,6 +954,10 @@
         });
 
         function confirmQuickImport() {
+            if (!isOwnerUser) {
+                showAlert("Thông Báo", "Quyền hạn không đủ để thao tác", false);
+                return;
+            }
             const text = document.getElementById('quick-import-textarea').value;
             const result = parseInputData(text);
             if (result.error || !result.persons) return;
@@ -915,6 +988,11 @@
         }
 
         function importExcelDangO(event) {
+            if (!isOwnerUser) {
+                event.target.value = '';
+                showAlert("Thông Báo", "Quyền hạn không đủ để thao tác", false);
+                return;
+            }
             const file = event.target.files[0];
             if (!file) return;
             const reader = new FileReader();
@@ -1034,6 +1112,10 @@
         }
 
         function openEditPersonModal(id) {
+            if (!isOwnerUser) {
+                showAlert("Thông Báo", "Quyền hạn không đủ để thao tác", false);
+                return;
+            }
             const p = db.dangO.find(x => x.id === id);
             if (!p) return;
             document.getElementById('edit-id').value = p.id;
@@ -1052,6 +1134,10 @@
         }
 
         function confirmEditPerson() {
+            if (!isOwnerUser) {
+                showAlert("Thông Báo", "Quyền hạn không đủ để thao tác", false);
+                return;
+            }
             const id = document.getElementById('edit-id').value;
             const p = db.dangO.find(x => x.id === id);
             if (!p) return;
@@ -1071,6 +1157,10 @@
         }
 
         function traPhongPerson(id) {
+            if (!isOwnerUser) {
+                showAlert("Thông Báo", "Quyền hạn không đủ để thao tác", false);
+                return;
+            }
             const idx = db.dangO.findIndex(x => x.id === id);
             if (idx === -1) return;
             const p = db.dangO.splice(idx, 1)[0];
@@ -1082,6 +1172,10 @@
         }
 
         function deleteDangOPerson(id) {
+            if (!isOwnerUser) {
+                showAlert("Thông Báo", "Quyền hạn không đủ để thao tác", false);
+                return;
+            }
             if (confirm("Xóa bản ghi này?")) {
                 db.dangO = db.dangO.filter(x => x.id !== id);
                 saveData();
@@ -1103,6 +1197,11 @@
         }
 
         function updateNgayDi(id, newDateVal) {
+            if (!isOwnerUser) {
+                showAlert("Thông Báo", "Quyền hạn không đủ để thao tác", false);
+                renderDaDi(); // Khôi phục lại ngày cũ trên giao diện
+                return;
+            }
             const p = db.daDi.find(x => x.id === id);
             if (p) {
                 p.ngayDi = newDateVal;
@@ -1174,6 +1273,10 @@
         }
 
         function deleteDaDiPerson(id) {
+            if (!isOwnerUser) {
+                showAlert("Thông Báo", "Quyền hạn không đủ để thao tác", false);
+                return;
+            }
             if (confirm("Xóa bản ghi này?")) {
                 db.daDi = db.daDi.filter(x => x.id !== id);
                 saveData();
@@ -1445,6 +1548,11 @@
         }
 
         async function uploadImg(event, id, type) {
+            if (!isOwnerUser) {
+                event.target.value = '';
+                showAlert("Thông Báo", "Quyền hạn không đủ để thao tác", false);
+                return;
+            }
             const file = event.target.files[0];
             if (!file) return;
             const p = db.dangO.find(x => x.id === id);
@@ -1468,6 +1576,10 @@
 
         async function handleDropImg(event, id, type) {
             event.preventDefault();
+            if (!isOwnerUser) {
+                showAlert("Thông Báo", "Quyền hạn không đủ để thao tác", false);
+                return;
+            }
             const p = db.dangO.find(x => x.id === id);
             if (!p) return;
 
@@ -1501,6 +1613,11 @@
 
         async function handleBoxPaste(e, id, type) {
             e.stopPropagation();
+            if (!isOwnerUser) {
+                e.preventDefault();
+                showAlert("Thông Báo", "Quyền hạn không đủ để thao tác", false);
+                return;
+            }
             const p = db.dangO.find(x => x.id === id);
             if (!p) return;
 
@@ -1522,6 +1639,10 @@
         }
 
         function removeImg(id, type) {
+            if (!isOwnerUser) {
+                showAlert("Thông Báo", "Quyền hạn không đủ để thao tác", false);
+                return;
+            }
             if (!confirm("Bạn có chắc muốn xóa ảnh này không?")) return;
             const p = db.dangO.find(x => x.id === id);
             if (p) {
@@ -1716,11 +1837,15 @@
 
         window.onload = async function() {
             await loadData();
-            if (sessionStorage.getItem('app_authenticated') === 'true') {
-                document.getElementById('auth-overlay').classList.add('hidden');
-            } else {
-                setTimeout(() => document.getElementById('app-password-input').focus(), 100);
-            }
+            
+            // Bắt buộc đăng xuất và hiện màn hình khóa khi F5, load lại hoặc mở mới trang
+            await _supabase.auth.signOut();
+            sessionStorage.removeItem('app_authenticated');
+            sessionStorage.removeItem('user_email');
+            
+            document.getElementById('auth-overlay').classList.remove('hidden');
+            setTimeout(() => document.getElementById('app-password-input').focus(), 100);
+            
             renderAll();
         };
     </script>
